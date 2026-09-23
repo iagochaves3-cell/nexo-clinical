@@ -1,0 +1,143 @@
+{
+  "date": "2026-09-23",
+  "state": "NOT_COMPLETED",
+  "external_application_of_this_plan": false,
+  "all_migrations_verified": false,
+  "railway": {
+    "project_id": "857761d9-fe68-4a76-8114-cab1346778d1",
+    "environment_id": "b46acc9a-5c76-4c7b-926e-12387a66fe2f",
+    "service_id": "8aabd13f-b848-47ca-bd07-4588e7aaee3e",
+    "broken_deployment_id": "45fd3e25-94c1-4f1a-9856-9274fe578474",
+    "runtime_error": "ModuleNotFoundError: No module named deploy",
+    "healthcheck_correction_state": "STAGED_NOT_APPLIED"
+  },
+  "modules": [
+    {
+      "name": "Nexo Clinical",
+      "slug": "nexo-clinical",
+      "backend_source": "source_baseline/nexo_clinical_platform-3.1.0-pediatric-governance.zip",
+      "plugin_id": null,
+      "migration_verified": false,
+      "public_url": "https://nexo-clinical-api-production.up.railway.app",
+      "url_state": "registered_only_runtime_failed",
+      "live_evidence_search": false,
+      "clinical_validation": false,
+      "active_in_mesclar": false
+    },
+    {
+      "name": "Receita PED",
+      "slug": "receita-ped",
+      "plugin_id": null,
+      "migration_verified": false,
+      "public_url": null,
+      "url_state": "not_created",
+      "backend_source": null,
+      "active_in_mesclar": false
+    },
+    {
+      "name": "VENTILAÇÃO MECÂNICA",
+      "slug": "ventilacao-mecanica",
+      "plugin_id": null,
+      "migration_verified": false,
+      "public_url": null,
+      "url_state": "not_created",
+      "backend_source": null,
+      "active_in_mesclar": false
+    },
+    {
+      "name": "SOROTERAPIA",
+      "slug": "soroterapia",
+      "plugin_id": null,
+      "migration_verified": false,
+      "public_url": null,
+      "url_state": "not_created",
+      "backend_source": null,
+      "active_in_mesclar": false
+    },
+    {
+      "name": "Cardiologia no PA",
+      "slug": "cardiologia-no-pa",
+      "plugin_id": null,
+      "migration_verified": false,
+      "public_url": null,
+      "url_state": "not_created",
+      "backend_source": null,
+      "active_in_mesclar": false
+    }
+  ],
+  "planned_site_mapping": [
+    {
+      "site": "Prescrição Pediátrica Segura",
+      "id": "appgprj_6a6e0d5a4ae881918e3fe01410787335",
+      "modules": [
+        "nexo-clinical",
+        "receita-ped"
+      ],
+      "applied": false
+    },
+    {
+      "site": "Ventilação Mecânica",
+      "id": "appgprj_6a7674b1eb4c8191881fcced25db6d91",
+      "modules": [
+        "nexo-clinical",
+        "ventilacao-mecanica"
+      ],
+      "applied": false
+    },
+    {
+      "site": "Soroterapia Pediátrica",
+      "id": "appgprj_6a7b56cf594c8191a064c4ba4beb90d7",
+      "modules": [
+        "nexo-clinical",
+        "soroterapia"
+      ],
+      "applied": false
+    },
+    {
+      "site": "Folha de Parada",
+      "id": "appgprj_6a824dcb8ec8819191272f5781e2d9c2",
+      "modules": [
+        "nexo-clinical"
+      ],
+      "conditional_modules": [
+        "ventilacao-mecanica",
+        "soroterapia",
+        "cardiologia-no-pa"
+      ],
+      "applied": false
+    },
+    {
+      "site": "Emergência Pediátrica — Doses e Cálculos",
+      "id": "appgprj_6a7750eac2c481918af84a3871119c13",
+      "modules": [
+        "nexo-clinical",
+        "receita-ped"
+      ],
+      "applied": false
+    },
+    {
+      "site": "Pediatric Flow",
+      "id": "appgprj_6a96eeef557481919e4dbdb4c25839ab",
+      "modules": [
+        "nexo-clinical"
+      ],
+      "conditional_modules": [
+        "receita-ped",
+        "ventilacao-mecanica",
+        "soroterapia"
+      ],
+      "applied": false
+    }
+  ],
+  "publication_gate": [
+    "Confirm exact plugin identity and intended scope",
+    "Confirm authentic executable source and release version",
+    "Deploy and verify health, TLS and authentication",
+    "Verify real functional capability, not only health response",
+    "Honor user condition: all requested migrations confirmed before registering new operational integrations",
+    "Write into original SitesGPTs and Mesclar only through authorized editors",
+    "No authentication token in browser code or URLs",
+    "No patient identifiers in pilot tests",
+    "No clinical approval from a client-supplied flag or mathematical check alone"
+  ]
+}

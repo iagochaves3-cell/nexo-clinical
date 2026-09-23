@@ -1,0 +1,86 @@
+{
+  "registry_version": "2.1.0-pediatric-governance-v61",
+  "verified_at": "2026-08-24",
+  "sources": [
+    {
+      "source_id": "ANVISA_MEDICATION_REGISTRY",
+      "organization": "ANVISA",
+      "title": "Consulta a registro de medicamentos",
+      "source_type": "official_regulatory_registry",
+      "url": "https://www.gov.br/anvisa/pt-br/sistemas/consulta-a-registro-de-medicamentos",
+      "priority": 1
+    },
+    {
+      "source_id": "ANVISA_CLOBUTINOL_2026",
+      "organization": "ANVISA",
+      "title": "Suspensão de medicamentos com clobutinol",
+      "source_type": "official_regulatory_action",
+      "publication_date": "2026-04-28",
+      "url": "https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/2026/anvisa-determina-suspensao-de-medicamentos-com-clobutinol-por-motivo-de-seguranca-sanitaria",
+      "priority": 1
+    },
+    {
+      "source_id": "ANVISA_RANITIDINE_NITROSAMINE",
+      "organization": "ANVISA",
+      "title": "Ranitidina: recolhimento e controle de nitrosaminas",
+      "source_type": "official_regulatory_safety",
+      "url": "https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/2020/ranitidina-entenda-o-recolhimento-voluntario",
+      "priority": 1
+    },
+    {
+      "source_id": "BRAZIL_CETIRIZINE_1MG_ML_LABEL_CROSSCHECK",
+      "organization": "Brazilian label mirror",
+      "title": "Dicloridrato de cetirizina solução oral 1 mg/mL",
+      "source_type": "label_crosscheck",
+      "url": "https://bula.com.br/original/zetalerg-solucao-oral",
+      "note": "Cross-check product status in ANVISA before live publication."
+    },
+    {
+      "source_id": "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK",
+      "organization": "EMS / Brazilian pharmacy listing",
+      "title": "Enavo gotas 8 mg/mL",
+      "source_type": "commercial_and_label_crosscheck",
+      "url": "https://www.drogasil.com.br/enavo-gotas-8mg-10ml-1313595.html",
+      "note": "Presentation does not authorize every indication."
+    },
+    {
+      "source_id": "CPS_ORAL_ONDANSETRON_GASTROENTERITIS",
+      "organization": "Canadian Paediatric Society",
+      "title": "Oral ondansetron for gastroenteritis-related vomiting",
+      "source_type": "professional_society_position",
+      "url": "https://cps.ca/en/documents/position/oral-ondansetron"
+    },
+    {
+      "source_id": "OFF_LABEL_ON_EVIDENCE_2022",
+      "organization": "Clinical Pharmacology & Therapeutics",
+      "title": "Off-Label, but on-Evidence?",
+      "source_type": "peer_reviewed_evidence_mapping",
+      "doi": "10.1002/cpt.2736",
+      "url": "https://ascpt.onlinelibrary.wiley.com/doi/10.1002/cpt.2736"
+    },
+    {
+      "source_id": "PEDIATRIC_CPOE_CDS_SYSTEMATIC_REVIEW_2024",
+      "organization": "Pediatric Drugs",
+      "title": "CPOE with CDS to prevent pediatric dose errors",
+      "source_type": "systematic_review",
+      "doi": "10.1007/s40272-023-00614-6",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38243105/"
+    },
+    {
+      "source_id": "PEDIATRIC_PRESCRIPTION_ERRORS_SYSTEMATIC_REVIEW_2025",
+      "organization": "BMC Health Services Research",
+      "title": "A systematic review of prescription errors in paediatric care",
+      "source_type": "systematic_review",
+      "doi": "10.1186/s12913-025-13109-6",
+      "url": "https://link.springer.com/article/10.1186/s12913-025-13109-6"
+    },
+    {
+      "source_id": "BEYOND_LABEL_2026",
+      "organization": "British Journal of Clinical Pharmacology",
+      "title": "Beyond the label: safer pediatric off-label pharmacotherapy",
+      "source_type": "peer_reviewed_review",
+      "doi": "10.1002/bcp.70461",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41693205/"
+    }
+  ]
+}

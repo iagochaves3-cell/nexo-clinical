@@ -52,7 +52,9 @@ def test_capabilities_truthful(client):
     r = client.get("/v1/capabilities", headers={"Authorization": "Bearer " + TEST_TOKEN})
     assert r.status_code == 200
     assert r.json()["clinical_validation"] is False
-    assert r.json()["live_evidence_search"] is False
+    # The additive retrieval routes now execute real remote searches. Clinical
+    # validation remains false and is intentionally a separate capability.
+    assert r.json()["live_evidence_search"] is True
     assert r.json()["sites_integration_verified"] is False
 
 def test_no_cors_wildcard(client):

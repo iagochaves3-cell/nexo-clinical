@@ -12,6 +12,9 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 MAX_BODY_BYTES = 1_048_576
 PUBLIC_PATHS = frozenset({"/", "/health"})
+INTEGRATION_ROUTES = frozenset({("GET", "/v1/capabilities"),
+                               ("POST", "/v1/evidence/search"),
+                               ("POST", "/v1/clinical/review")})
 SECURITY_HEADERS = [
     (b"cache-control", b"no-store"),
     (b"x-content-type-options", b"nosniff"),
@@ -24,9 +27,10 @@ SECURITY_HEADERS = [
 class ProtectedAPI:
     """Bearer obrigatório, inclusive na documentação; limite real de corpo."""
 
-    def __init__(self, app: ASGIApp, token: str) -> None:
+    def __init__(self, app: ASGIApp, token: str, integration_token: str = "") -> None:
         self.app = app
         self._token = token.encode("ascii")
+        self._integration_token = integration_token.encode("ascii")
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "websocket":
@@ -52,7 +56,11 @@ class ProtectedAPI:
             authorized = False
             if len(values) == 1:
                 scheme, separator, supplied = values[0].partition(b" ")
-                authorized = bool(separator and scheme.lower() == b"bearer" and hmac.compare_digest(supplied, self._token))
+                primary = hmac.compare_digest(supplied, self._token)
+                integration = hmac.compare_digest(supplied, self._integration_token)
+                scoped = bool(self._integration_token and integration and
+                              (scope.get("method"), scope.get("path")) in INTEGRATION_ROUTES)
+                authorized = bool(separator and scheme.lower() == b"bearer" and (primary or scoped))
             if not authorized:
                 await reject(401, "Credencial de API ausente ou inválida.", headers={"WWW-Authenticate": "Bearer"})
                 return
@@ -95,6 +103,9 @@ def create_app() -> ASGIApp:
     token = os.environ.get("NEXO_API_TOKEN", "")
     if not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", token):
         raise RuntimeError("Configure NEXO_API_TOKEN com segredo aleatório de 32 a 256 caracteres URL-safe antes de iniciar.")
+    integration_token = os.environ.get("NEXO_INTEGRATION_TOKEN", "")
+    if integration_token and (not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", integration_token) or integration_token == token):
+        raise RuntimeError("NEXO_INTEGRATION_TOKEN deve ser um segredo URL-safe independente de 32 a 256 caracteres.")
     from nexo_clinical import __version__
     from nexo_clinical.api import create_app as original_app
     app = original_app()
@@ -114,13 +125,17 @@ def create_app() -> ASGIApp:
         return {
             "source_registry": True,
             "specialist_routing": True,
-            "live_evidence_search": False,
+            "live_evidence_search": True,
+            "evidence_revision": "2026-09-23.1",
+            "evidence_search_provider": "Europe PMC / PubMed records",
+            "clinical_review": "evidence_bound_draft",
+            "review_provider_configured": bool(os.getenv("NEXO_REVIEW_API_KEY") and os.getenv("NEXO_REVIEW_MODEL")),
             "clinical_validation": False,
             "sites_integration_verified": False,
             "original_orchestrate_behavior": "prepare_specialist_routing_only",
         }
 
-    return ProtectedAPI(app, token)
+    return ProtectedAPI(app, token, integration_token)
 
 
 def main() -> None:

@@ -32,6 +32,8 @@ def create_app():
     def lab(payload:dict): return analyze_laboratory(payload)
     @app.post("/v1/multimodal/imaging/assess")
     def imaging(payload:dict): return assess_image_input(payload)
+    from .evidence_api import register_evidence_routes
+    register_evidence_routes(app)
     return app
 
 def main():

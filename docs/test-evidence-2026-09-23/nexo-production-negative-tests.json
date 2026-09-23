@@ -1,0 +1,86 @@
+[
+  {
+    "method": "GET",
+    "path": "/",
+    "auth": "none",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "auth": "none",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/openapi.json",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/openapi.json",
+    "auth": "invalid",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/sources",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/sources",
+    "auth": "invalid",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/capabilities",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/capabilities",
+    "auth": "invalid",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/v1/orchestrate",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/v1/orchestrate",
+    "auth": "invalid",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/v1/safety/review",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/v1/safety/review",
+    "auth": "invalid",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/multimodal/ecg/qtc?qt_ms=400&rr_ms=1000",
+    "auth": "none",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/v1/multimodal/ecg/qtc?qt_ms=400&rr_ms=1000",
+    "auth": "invalid",
+    "status": 401
+  }
+]

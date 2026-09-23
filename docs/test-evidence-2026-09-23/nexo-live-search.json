@@ -1,0 +1,67 @@
+{
+  "provider": "Europe PMC / PubMed records",
+  "query": "amoxicillin streptococcal pharyngitis",
+  "executed_query": "\"amoxicillin\" AND \"streptococcal\" AND \"pharyngitis\" AND SRC:MED",
+  "retrieved_at": "2026-09-23T12:24:40.186094+00:00",
+  "hit_count": 1356,
+  "sources": [
+    {
+      "source_id": "pubmed:42469532",
+      "pmid": "42469532",
+      "doi": "10.1007/s40121-026-01411-7",
+      "title": "Streptococcal Pharyngitis in Paediatric Primary Care: Clinical Characteristics, Recurrences, Complications, and Antibiotic Management.",
+      "publication_date": "2026-07-17",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42469532/",
+      "retrieved_at": "2026-09-23T12:24:40.186094+00:00",
+      "content_sha256": "603903c2ac2c8b2dd45f3b89445d6dd77aaca781c5224e9c92810f246d406233",
+      "retrieval_scope": "bibliographic_record_and_abstract",
+      "abstract_available": true,
+      "clinical_applicability_verified": false
+    },
+    {
+      "source_id": "pubmed:42564553",
+      "pmid": "42564553",
+      "doi": "10.1002/jgf2.70163",
+      "title": "Acute Rheumatic Fever Without Pharyngitis: A Case Report.",
+      "publication_date": "2026-08-06",
+      "publication_types": [
+        "case-study",
+        "Journal Article"
+      ],
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42564553/",
+      "retrieved_at": "2026-09-23T12:24:40.186094+00:00",
+      "content_sha256": "c3cf9a95b091bd3a27587be40689bcad924829b3a8f555c203f595751196cc37",
+      "retrieval_scope": "bibliographic_record_and_abstract",
+      "abstract_available": true,
+      "clinical_applicability_verified": false
+    },
+    {
+      "source_id": "pubmed:42666895",
+      "pmid": "42666895",
+      "doi": "10.7759/cureus.115348",
+      "title": "Suspected Group A Streptococcal Urethritis Following Orogenital Exposure in a Young Adult Male.",
+      "publication_date": "2026-08-28",
+      "publication_types": [
+        "Journal Article",
+        "Case Reports",
+        "case-report"
+      ],
+      "url": "https://pubmed.ncbi.nlm.nih.gov/42666895/",
+      "retrieved_at": "2026-09-23T12:24:40.186094+00:00",
+      "content_sha256": "a16332816a9481d86beb79bab6789f0ae109326d07a566d25070ea20340dc7d0",
+      "retrieval_scope": "bibliographic_record_and_abstract",
+      "abstract_available": true,
+      "clinical_applicability_verified": false
+    }
+  ],
+  "clinical_validated": false,
+  "limitations": [
+    "Busca bibliográfica, não revisão sistemática ou aprovação clínica.",
+    "Registros e resumos não confirmam doses nem apresentações brasileiras.",
+    "Cobertura de protocolos locais e bulas ANVISA ainda não implementada."
+  ]
+}

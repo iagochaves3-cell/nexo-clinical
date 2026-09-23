@@ -1,0 +1,71 @@
+"""Run inside a trusted terminal/server. Never prints credentials or response bodies.
+
+NEXO_API_TOKEN must already exist in the environment. This script does not
+prompt for, rotate, persist or send the token anywhere except the fixed API.
+"""
+import json
+import os
+import sys
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, build_opener, HTTPRedirectHandler
+
+BASE = "https://nexo-clinical-api-production.up.railway.app"
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def call(path, token=None, payload=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    request = Request(BASE + path, headers=headers,
+                      data=json.dumps(payload).encode() if payload is not None else None)
+    try:
+        with build_opener(NoRedirect()).open(request, timeout=65) as response:
+            return response.status, json.loads(response.read(2_000_000))
+    except HTTPError as exc:
+        return exc.code, {}
+    except (URLError, OSError, ValueError):
+        return 0, {}
+
+
+def main():
+    failures = 0
+
+    def report(name, passed):
+        nonlocal failures
+        failures += not passed
+        print(json.dumps({"check": name, "passed": bool(passed)}))
+
+    status, health = call("/health")
+    report("public_health", status == 200 and health.get("status") == "ok")
+    for path in ["/openapi.json", "/v1/sources", "/v1/capabilities"]:
+        report("missing_token " + path, call(path)[0] == 401)
+        report("invalid_token " + path, call(path, "synthetic-invalid-token")[0] == 401)
+    token = os.environ.get("NEXO_API_TOKEN")
+    if not token:
+        print(json.dumps({"positive_auth": "not_executed", "reason": "NEXO_API_TOKEN_not_available"}))
+        return 2
+    status, data = call("/openapi.json", token)
+    report("authenticated_openapi", status == 200 and "/v1/orchestrate" in data.get("paths", {}))
+    status, data = call("/v1/sources", token)
+    report("source_registry", status == 200 and isinstance(data, list) and len(data) > 0)
+    status, data = call("/v1/orchestrate", token, {"text": "ECG com taquicardia; caso sintético"})
+    report("specialist_routing", status == 200 and "Cardiologia e ECG" in data.get("specialists", []))
+    status, data = call("/v1/safety/review", token, {"text": "adrenalina", "context": {}, "citations": []})
+    report("missing_weight_safety", status == 200 and data.get("blocked") is True)
+    status, data = call("/v1/multimodal/ecg/qtc?qt_ms=400&rr_ms=1000", token)
+    report("qtc_synthetic_arithmetic", status == 200 and data.get("bazett_ms") == 400)
+    if "--include-evidence" in sys.argv:
+        status, data = call("/v1/evidence/search", token,
+                            {"query": "amoxicillin streptococcal pharyngitis", "deidentified": True, "limit": 2})
+        report("live_evidence", status == 200 and bool(data.get("sources")) and data.get("clinical_validated") is False)
+    print(json.dumps({"failures": failures, "clinical_validation": False}))
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

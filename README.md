@@ -45,3 +45,12 @@ A API fica em `http://127.0.0.1:8000`; verifique `/health`.
 ## Limites clínicos
 
 A plataforma é infraestrutura para suporte à decisão, não substitui validação clínica, protocolos institucionais ou regulamentação. O Source Registry inicial contém fontes estruturantes; diretrizes, protocolos e fármacos individuais devem ser ingeridos por domínio com revisão humana, versionamento e rastreabilidade.
+
+
+## Incremento local de 23/09/2026 — não publicado
+
+A branch `feat/live-evidence-pps-review` acrescenta busca bibliográfica real e
+rascunho de revisão ancorado em resumos, sem aprovação clínica automática.
+A produção permanece no commit base. Ver `docs/RETOMADA_2026-09-23.md` na raiz
+do repositório para evidências, limites, credenciais e a restrição 403 do GitHub.
+O trecho anterior descreve o pacote original e não comprova o estado publicado.

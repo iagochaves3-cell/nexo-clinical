@@ -1,0 +1,66 @@
+[
+  {
+    "presentation_id": "cetirizine-oral-solution-1mg-ml-br",
+    "generic_name": "dicloridrato de cetirizina",
+    "strength": {
+      "value": 1,
+      "unit": "mg/mL"
+    },
+    "dosage_form": "solução oral/xarope",
+    "package_examples": [
+      "60 mL",
+      "75 mL",
+      "80 mL",
+      "120 mL"
+    ],
+    "route": "VO",
+    "brazil_status": "REGISTERED_PRESENTATION_CLASS_CONFIRMED",
+    "minimum_label_age": "2 years",
+    "source_ids": [
+      "BRAZIL_CETIRIZINE_1MG_ML_LABEL_CROSSCHECK"
+    ],
+    "last_verified": "2026-08-24"
+  },
+  {
+    "presentation_id": "ondansetron-enavo-drops-8mg-ml-5ml-br",
+    "brand": "Enavo",
+    "generic_name": "cloridrato de ondansetrona di-hidratado",
+    "strength": {
+      "value": 8,
+      "unit": "mg/mL"
+    },
+    "dosage_form": "solução oral em gotas",
+    "package_volume": "5 mL",
+    "route": "VO",
+    "drops_per_mL": 20,
+    "active_mg_per_drop": 0.4,
+    "registration_ms": "1023514490017",
+    "brazil_status": "COMMERCIAL_PRESENCE_CROSSCHECKED",
+    "source_ids": [
+      "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"
+    ],
+    "last_verified": "2026-08-24",
+    "safety_note": "Presentation data do not authorize every indication."
+  },
+  {
+    "presentation_id": "ondansetron-enavo-drops-8mg-ml-10ml-br",
+    "brand": "Enavo",
+    "generic_name": "cloridrato de ondansetrona di-hidratado",
+    "strength": {
+      "value": 8,
+      "unit": "mg/mL"
+    },
+    "dosage_form": "solução oral em gotas",
+    "package_volume": "10 mL",
+    "route": "VO",
+    "drops_per_mL": 20,
+    "active_mg_per_drop": 0.4,
+    "registration_ms": "1023514490025",
+    "brazil_status": "COMMERCIAL_PRESENCE_CROSSCHECKED",
+    "source_ids": [
+      "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"
+    ],
+    "last_verified": "2026-08-24",
+    "safety_note": "Presentation data do not authorize every indication."
+  }
+]

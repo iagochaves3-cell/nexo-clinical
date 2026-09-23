@@ -1,0 +1,62 @@
+configuration:
+  id: pediatric-pharmacotherapy-governance
+  version: 61.0-diagnosis-linked-complete-regimens
+  effective_date: 2026-08-24
+  locale: pt-BR
+  status: ACTIVE_REFERENCE_CONFIGURATION
+  applies_to:
+    - prescricao-pediatrica-segura
+    - emergencia-pediatrica-doses
+    - folha-de-parada
+    - receituario
+    - nexo-clinical
+    - receita-ped
+    - emergencia
+    - medicacoes-na-pediatria
+non_negotiable_safety:
+  - Never invent dose, presentation, concentration, drop factor, dilution, compatibility, stability, maximum, indication, age limit, or source.
+  - Off-label use requires exact indication, population, dose, route, interval, duration, monitoring, evidence level, source, and explicit label.
+  - Evidence-limited specialist practice is allowed only as EVIDENCIA_LIMITADA and never becomes first-line automatically.
+  - Combination products require calculation_component and concentration for that component.
+  - High-alert medication requires independent reverse calculation and human double-check.
+prohibited_user_messages:
+  - "ITEM SELECIONADO, MAS NÃO LIBERADO PARA O RECEITUÁRIO: faltam concentração, dose, intervalo ou dados de idade estruturados para uma conversão segura."
+  - "ITEM SELECIONADO, MAS NÃO LIBERADO"
+  - "REVISAR CONFIGURAÇÃO — resposta não calculável"
+  - "definir concentração/reconstituição antes de calcular o volume"
+allowed_resolution_states:
+  READY: "POSOLOGIA OPERACIONAL VALIDADA"
+  CONTRAINDICATED_AGE: "MEDICAMENTO CONTRAINDICADO PARA ESTA IDADE"
+  CONTRAINDICATED_WEIGHT: "MEDICAMENTO CONTRAINDICADO PARA ESTE PESO"
+  CONTRAINDICATED_CLINICAL: "MEDICAMENTO CONTRAINDICADO NESTE CONTEXTO CLÍNICO: {reason}"
+  NOT_INDICATED_FOR_DIAGNOSIS: "MEDICAMENTO NÃO INDICADO PARA O DIAGNÓSTICO SELECIONADO"
+  SPECIALIST_ONLY: "USO RESTRITO A PROTOCOLO ESPECIALIZADO PARA ESTA INDICAÇÃO"
+  REQUIRES_CRITICAL_INPUT: "DADO CLÍNICO OBRIGATÓRIO AUSENTE: {field}"
+  REGULATORY_SUSPENDED: "MEDICAMENTO/APRESENTAÇÃO COM USO OU COMERCIALIZAÇÃO SUSPENSOS — NÃO OFERTAR"
+selector_policy:
+  default: deny
+  selectable_only_when:
+    - diagnosis_relation_is_explicit
+    - patient_population_matches
+    - complete_operational_regimen
+    - brazilian_presentation_verified
+    - regimen_level_source_present
+    - triple_audit_passed
+therapy_sections:
+  adjuvant:
+    item_number: "03"
+    title: "Terapia adjuvante vinculada ao diagnóstico"
+    lexical_matching_allowed: false
+    class_only_matching_allowed: false
+    allowed_targets: [disease_mechanism, documented_symptom, complication_prevention, treatment_adverse_effect_prevention, comorbidity_explicitly_present]
+calculation_engine:
+  rules:
+    - Calculate first in original clinical unit.
+    - Apply maximum to the same component and time basis as the source.
+    - Convert to practical units after dose selection.
+    - Reverse-check the rounded practical amount displayed.
+    - For infusions calculate mL/h and independently reconstruct the clinical dose.
+triple_audit:
+  pass_1: structural
+  pass_2: pharmaceutical_and_mathematical
+  pass_3: clinical_evidence_and_regulatory

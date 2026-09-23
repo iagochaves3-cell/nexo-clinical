@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nexo-clinical-platform"
+version = "3.1.0"
+description = "Clinical Knowledge Platform: conhecimento versionado, regras clínicas, farmacologia, multimodalidade, segurança e agentes especialistas."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [{name = "Nexo Clinical Platform"}]
+dependencies = [
+  "pydantic>=2.8,<3",
+  "openai-agents>=0.18.2,<0.19"
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1"]
+multimodal = ["numpy>=1.26,<3", "pydicom>=3,<4", "Pillow>=10,<12"]
+dev = ["pytest>=8.2,<9", "httpx>=0.27,<1", "fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1", "build>=1.2,<2"]
+
+[project.scripts]
+nexo-clinical = "nexo_clinical.cli:main"
+nexo-clinical-api = "nexo_clinical.api:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nexo_clinical"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"nexo_clinical/data/source_registry.json" = "nexo_clinical/data/source_registry.json"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

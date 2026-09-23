@@ -1,0 +1,2 @@
+41 testes de software aprovados. Build Docker e testes externos da API não concluídos.
+.........................................                                [100%]

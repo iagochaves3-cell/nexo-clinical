@@ -1,0 +1,47 @@
+[
+  {
+    "id": "route_pediatric_drug",
+    "ok": true,
+    "got": {
+      "domain": "emergency_pediatrics",
+      "specialists": [
+        "Emergência pediátrica",
+        "Farmacologia clínica",
+        "Síntese de evidências",
+        "Revisão de segurança"
+      ],
+      "source_registry_version": "1.0.0",
+      "privacy_gate": "do_not_externalize_identifiers"
+    }
+  },
+  {
+    "id": "block_high_alert_no_source",
+    "ok": true,
+    "got": {
+      "blocked": true,
+      "findings": [
+        {
+          "code": "MISSING_SOURCE",
+          "severity": "critical",
+          "message": "Recomendação farmacológica de alto risco sem fonte rastreável.",
+          "blocking": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "privacy",
+    "ok": true,
+    "got": {
+      "blocked": true,
+      "findings": [
+        {
+          "code": "PHI_DETECTED",
+          "severity": "critical",
+          "message": "Possível identificador pessoal detectado; anonimizar antes de pesquisa externa.",
+          "blocking": true
+        }
+      ]
+    }
+  }
+]

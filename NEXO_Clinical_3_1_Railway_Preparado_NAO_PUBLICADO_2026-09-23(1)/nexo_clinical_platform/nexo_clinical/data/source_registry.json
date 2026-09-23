@@ -1,0 +1,296 @@
+{
+  "registry_version": "1.0.0",
+  "title": "Nexo Medical Source Registry",
+  "locale": "pt-BR",
+  "verified_at": "2026-07-18",
+  "purpose": "Registro versionado de fontes prioritárias para respostas médicas, conhecimento clínico computável, farmacologia, interoperabilidade, avaliação de IA clínica e multimodalidade.",
+  "governance": {
+    "source_priority": [
+      "Diretriz oficial atual baseada em revisão sistemática",
+      "Revisão sistemática ou metanálise de alta qualidade",
+      "Ensaio clínico randomizado",
+      "Estudo prospectivo de validação externa",
+      "Estudo observacional comparativo",
+      "Consenso formal de especialistas",
+      "Bula ou informação regulatória oficial",
+      "Revisão narrativa",
+      "Opinião de especialista"
+    ],
+    "mandatory_fields": [
+      "source_id",
+      "organization",
+      "title",
+      "source_type",
+      "jurisdiction",
+      "publication_date",
+      "last_verified",
+      "canonical_url",
+      "status",
+      "scope",
+      "evidence_role",
+      "update_policy"
+    ],
+    "clinical_rules": [
+      "Não transformar ausência de evidência em recomendação positiva.",
+      "Separar dose clínica selecionada de cálculo aritmético.",
+      "Exigir fonte específica para estabilidade, compatibilidade, via, diluição e máximo absoluto.",
+      "Registrar divergências entre fontes e aplicabilidade ao Brasil.",
+      "Manter revisão humana para conteúdo de alto risco e multimodalidade diagnóstica."
+    ]
+  },
+  "sources": [
+    {
+      "source_id": "WHO_SMART_GUIDELINES",
+      "organization": "World Health Organization",
+      "title": "WHO SMART Guidelines",
+      "source_type": "official_framework",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.who.int/teams/digital-health-and-innovation/smart-guidelines",
+      "status": "active",
+      "scope": [
+        "guideline digitization",
+        "clinical decision support",
+        "interoperability",
+        "versioned knowledge"
+      ],
+      "evidence_role": "Modelo principal para converter diretrizes narrativas em componentes estruturados, reutilizáveis, testáveis e atualizáveis.",
+      "update_policy": "Verificar trimestralmente e sempre antes de alteração arquitetural.",
+      "notes": "SMART = Standards-based, Machine-readable, Adaptive, Requirements-based and Testable.",
+      "checksum_sha256": "b89e8a094da82a20beca158f1a5c39e5cd4cb6c7c8a0adaa30f1c3404863d746"
+    },
+    {
+      "source_id": "WHO_DAK",
+      "organization": "World Health Organization",
+      "title": "Digital Adaptation Kits",
+      "source_type": "official_implementation_framework",
+      "jurisdiction": "global",
+      "publication_date": "2022-02-06",
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.who.int/publications/m/item/who-digital-accelerator-kits",
+      "status": "active",
+      "scope": [
+        "workflows",
+        "core data",
+        "decision logic",
+        "indicators",
+        "functional requirements"
+      ],
+      "evidence_role": "Estrutura operacional para representar recomendações clínicas em sistemas digitais.",
+      "update_policy": "Verificar semestralmente e por domínio clínico.",
+      "checksum_sha256": "8a222b5fdfa3aafd5c22446e308a813e7fb127193dd214f5eab4e767f1e4e0f6"
+    },
+    {
+      "source_id": "FDA_CDS_2026",
+      "organization": "U.S. Food and Drug Administration",
+      "title": "Clinical Decision Support Software Guidance",
+      "source_type": "regulatory_guidance",
+      "jurisdiction": "United States",
+      "publication_date": "2026-01",
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/clinical-decision-support-software",
+      "status": "final",
+      "scope": [
+        "clinical decision support",
+        "software as medical device",
+        "regulatory classification"
+      ],
+      "evidence_role": "Avaliar quando uma função de suporte clínico pode ou não ser considerada dispositivo médico.",
+      "update_policy": "Verificar antes de qualquer lançamento de funcionalidade clínica ou multimodal.",
+      "checksum_sha256": "c518de35de828ec53538deaf755ad1ff4f8c939971a2c1866ae8e86b9ba56898"
+    },
+    {
+      "source_id": "EMA_EPI",
+      "organization": "European Medicines Agency",
+      "title": "Electronic Product Information (ePI)",
+      "source_type": "regulatory_product_information_standard",
+      "jurisdiction": "European Union",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.ema.europa.eu/en/human-regulatory-overview/marketing-authorisation/product-information-requirements/electronic-product-information-epi",
+      "status": "active",
+      "scope": [
+        "medication product information",
+        "FHIR",
+        "regulatory data"
+      ],
+      "evidence_role": "Referência para informação regulatória de medicamentos em formato eletrônico estruturado.",
+      "update_policy": "Verificar trimestralmente.",
+      "checksum_sha256": "398f6ea2220966f39e544cf340e4b8b2009dc465539cc5b229303f58eb20b80b"
+    },
+    {
+      "source_id": "COCHRANE_HANDBOOK",
+      "organization": "Cochrane",
+      "title": "Cochrane Handbook for Systematic Reviews of Interventions",
+      "source_type": "evidence_synthesis_methodology",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.cochrane.org/authors/handbooks-and-manuals/handbook",
+      "status": "active",
+      "scope": [
+        "systematic reviews",
+        "risk of bias",
+        "meta-analysis",
+        "evidence synthesis"
+      ],
+      "evidence_role": "Metodologia de referência para busca, seleção, avaliação e síntese de evidências.",
+      "update_policy": "Verificar antes de revisão sistemática formal.",
+      "checksum_sha256": "3d308ebeee9a09db00d0723fd2612d8c944e032c22e88fac75925a73b2e34281"
+    },
+    {
+      "source_id": "DECIDE_AI",
+      "organization": "DECIDE-AI Collaboration",
+      "title": "DECIDE-AI reporting guideline",
+      "source_type": "peer_reviewed_reporting_guideline",
+      "jurisdiction": "global",
+      "publication_date": "2022",
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://consensus.app/papers/reporting-guideline-for-the-early-stage-clinical-vasey-nagendran/7aede304ea9a53e492beb75bb340c962/?utm_source=chatgpt",
+      "status": "active",
+      "scope": [
+        "early clinical evaluation",
+        "human factors",
+        "AI safety",
+        "clinical workflow"
+      ],
+      "evidence_role": "Checklist para avaliação clínica inicial prospectiva de sistemas de suporte à decisão baseados em IA.",
+      "update_policy": "Aplicar a cada estudo piloto clínico e revisar anualmente.",
+      "checksum_sha256": "7e390cb985e4bbb96798ded9a7c3c1a1b6b8779543a4a0c62bebcd1e7dc4b9f9"
+    },
+    {
+      "source_id": "CONSORT_AI",
+      "organization": "CONSORT-AI Collaboration",
+      "title": "CONSORT-AI extension",
+      "source_type": "peer_reviewed_reporting_guideline",
+      "jurisdiction": "global",
+      "publication_date": "2020",
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.equator-network.org/reporting-guidelines/consort-artificial-intelligence/",
+      "status": "active",
+      "scope": [
+        "randomized clinical trials",
+        "AI interventions",
+        "error analysis",
+        "human-AI interaction"
+      ],
+      "evidence_role": "Relato transparente de ensaios clínicos de intervenções com IA.",
+      "update_policy": "Aplicar em ensaios e verificar antes do protocolo final.",
+      "checksum_sha256": "11d7d4cb8900e16f403c1bd71983e860e3e5ddbd4baa70747d65469371cc3903"
+    },
+    {
+      "source_id": "SPIRIT_AI",
+      "organization": "SPIRIT-AI Collaboration",
+      "title": "SPIRIT-AI extension",
+      "source_type": "peer_reviewed_protocol_guideline",
+      "jurisdiction": "global",
+      "publication_date": "2020",
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.equator-network.org/reporting-guidelines/spirit-artificial-intelligence/",
+      "status": "active",
+      "scope": [
+        "clinical trial protocols",
+        "AI interventions",
+        "input-output handling",
+        "human-AI interaction"
+      ],
+      "evidence_role": "Planejamento transparente de protocolos de ensaios clínicos de IA.",
+      "update_policy": "Aplicar antes de iniciar estudo prospectivo.",
+      "checksum_sha256": "5354dca30d2d12f76e03d0e9b076f2ae6caebd52f7d79a1eee22eaf7dde24307"
+    },
+    {
+      "source_id": "SNOMED_CT",
+      "organization": "SNOMED International",
+      "title": "SNOMED CT",
+      "source_type": "clinical_terminology_standard",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.snomed.org/",
+      "status": "active",
+      "scope": [
+        "clinical concepts",
+        "semantic interoperability",
+        "coded knowledge"
+      ],
+      "evidence_role": "Terminologia clínica para problemas, achados, procedimentos e relações semânticas.",
+      "update_policy": "Sincronizar conforme release licenciada adotada.",
+      "checksum_sha256": "935f3e2ca3268108c4cfaf01eed8a9a7351f7a7546658c9a19b2cd89555a4994"
+    },
+    {
+      "source_id": "LOINC",
+      "organization": "Regenstrief Institute",
+      "title": "LOINC",
+      "source_type": "laboratory_observation_standard",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://loinc.org/",
+      "status": "active",
+      "scope": [
+        "laboratory tests",
+        "clinical observations",
+        "documents",
+        "vital signs"
+      ],
+      "evidence_role": "Identificação padronizada de exames e observações.",
+      "update_policy": "Atualizar conforme release oficial.",
+      "checksum_sha256": "280484ea99b0f17a7161bae6d527c048927fb7883f551e002120fe7251c675f9"
+    },
+    {
+      "source_id": "HL7_FHIR",
+      "organization": "HL7 International",
+      "title": "HL7 FHIR",
+      "source_type": "health_data_exchange_standard",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://hl7.org/fhir/",
+      "status": "active",
+      "scope": [
+        "clinical data exchange",
+        "APIs",
+        "decision support",
+        "implementation guides"
+      ],
+      "evidence_role": "Modelo de interoperabilidade para dados e artefatos clínicos computáveis.",
+      "update_policy": "Fixar versão por implementação e controlar migrações.",
+      "checksum_sha256": "fc57d9cf16b899290f3651fd64f7a87de8e7c113b1f6e6c1c53f8edbd41346ad"
+    },
+    {
+      "source_id": "DICOM",
+      "organization": "DICOM Standards Committee",
+      "title": "DICOM Standard",
+      "source_type": "medical_imaging_standard",
+      "jurisdiction": "global",
+      "publication_date": null,
+      "last_verified": "2026-07-18",
+      "canonical_url": "https://www.dicomstandard.org/",
+      "status": "active",
+      "scope": [
+        "medical imaging",
+        "metadata",
+        "DICOMweb",
+        "image exchange"
+      ],
+      "evidence_role": "Padrão primário para ingestão, preservação e intercâmbio de imagens médicas.",
+      "update_policy": "Fixar edição suportada e validar conformidade.",
+      "checksum_sha256": "9b066bcc6584ea259078ec8524c4405f920c70ef06a74063fa5f3adeec91f3f2"
+    }
+  ],
+  "planned_domain_registries": [
+    "emergency_adult",
+    "emergency_pediatrics",
+    "critical_care",
+    "pharmacology",
+    "infectious_diseases",
+    "cardiology_ecg",
+    "neurology",
+    "trauma",
+    "toxicology",
+    "laboratory",
+    "radiology",
+    "clinical_documentation"
+  ]
+}

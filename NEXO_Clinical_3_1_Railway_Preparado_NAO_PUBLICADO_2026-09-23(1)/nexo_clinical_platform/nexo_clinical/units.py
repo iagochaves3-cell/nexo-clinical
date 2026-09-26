@@ -179,6 +179,8 @@ def parse_dose_unit(unit: str, *, require_time: bool = True) -> ParsedDoseUnit:
 
     if require_time and time_unit is None:
         raise ValueError(f"A unidade deve incluir tempo (/min, /h ou /day): {unit!r}.")
+    if not require_time and time_unit is not None:
+        raise ValueError("Dose sem tempo não aceita denominador temporal.")
     if time_unit is None:
         time_unit = "h"  # Convenção interna apenas para dose sem tempo.
 

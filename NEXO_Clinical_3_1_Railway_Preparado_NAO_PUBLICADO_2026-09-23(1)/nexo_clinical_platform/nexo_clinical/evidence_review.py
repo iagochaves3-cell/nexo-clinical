@@ -139,7 +139,7 @@ def generate_review(request: ReviewRequest, sources: list[RetrievedSource]) -> R
         parts = [part["text"] for item in data["output"] if item.get("type") == "message"
                  for part in item.get("content", []) if part.get("type") == "output_text"]
         draft = ReviewDraft.model_validate_json("".join(parts))
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, AttributeError):
         raise ProviderUnavailable("review_invalid_schema") from None
     verify_draft(draft, request, sources)
     return draft

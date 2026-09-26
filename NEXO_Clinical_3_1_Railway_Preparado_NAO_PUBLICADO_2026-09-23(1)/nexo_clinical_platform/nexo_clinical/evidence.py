@@ -7,6 +7,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from html import unescape
+from http.client import HTTPException
 from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -51,7 +52,7 @@ def request_json(url: str, *, payload: dict | None = None,
             if not isinstance(result, dict):
                 raise ProviderUnavailable("upstream_invalid_schema")
             return result
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError, HTTPException) as exc:
         raise ProviderUnavailable("upstream_request_failed") from None
 
 

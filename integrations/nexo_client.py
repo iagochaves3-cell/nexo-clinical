@@ -6,6 +6,7 @@ The upstream is centralized; this file does not duplicate medical rules.
 import json
 import os
 import re
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
@@ -75,7 +76,7 @@ def forward(path, payload, domain):
         if exc.code == 429:
             raise AdapterError(429, "nexo_capacity_exceeded") from None
         raise AdapterError(503, "nexo_unavailable") from None
-    except (URLError, OSError, ValueError):
+    except (URLError, OSError, ValueError, HTTPException):
         raise AdapterError(503, "nexo_unavailable") from None
     if not isinstance(result, dict) or result.get("clinical_validated") is not False:
         raise AdapterError(502, "nexo_invalid_contract")

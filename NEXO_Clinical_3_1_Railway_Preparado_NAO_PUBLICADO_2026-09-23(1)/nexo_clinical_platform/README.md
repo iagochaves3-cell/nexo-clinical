@@ -1,56 +1,99 @@
-# Nexo Clinical Knowledge Platform 3.1
+# NEXO Clinical Knowledge Platform 3.1
 
-Substituição arquitetural do Nexo AI 2.x por uma plataforma de conhecimento clínico estruturado, versionado e auditável.
+Estado do código em main: busca bibliográfica Europe PMC/PubMed e rascunho de revisão autenticado implementados. A revisão não autoriza prescrição nem equivale a validação clínica. A versão de código não comprova o SHA em produção.
 
-## Estado da implantação
+## Diretório canônico
 
-Base técnica 3.1.0 recuperada do pacote preparado em 23/09/2026.
-A API pública exige `NEXO_API_TOKEN` para todos os endpoints, exceto `/` e `/health`.
-Gere um segredo aleatório URL-safe (32 a 256 caracteres) e configure-o apenas no servidor.
-O Dockerfile inicia `python -m deploy.server` e inclui o diretório `deploy/`.
+A aplicação está em `NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform`.
+As cópias soltas da raiz e os relatórios de preparação são históricos.
+O build/instalação a partir da raiz do repositório não é suportado.
 
-**Ainda não implementados:** pesquisa científica ao vivo, validação clínica completa,
-migração dos demais plugins e integração verificada aos SitesGPTs.
-`/v1/orchestrate` prepara o roteamento; não aprova prescrições.
-Os testes de software não equivalem a validação científica de doses.
+## Instalação e testes
 
-Os relatórios de preparação e seus hashes foram preservados como histórico.
-Eles descrevem o estado anterior ao envio deste repositório; verifique o estado atual no Railway.
-
-## Componentes entregues
-
-- Source Registry versionado e validado por esquema.
-- Knowledge Platform para recomendações computáveis e registros farmacológicos.
-- Clinical Rules Engine determinístico.
-- Núcleo de cálculos preservado da versão anterior.
-- Roteamento para especialistas clínicos.
-- Safety Pipeline com bloqueios críticos.
-- Módulos multimodais iniciais: ECG, laboratório e imagem.
-- API FastAPI, CLI, Dockerfile e suíte de testes.
-- Evals locais com casos de segurança.
-
-## Instalação
+Execute os comandos abaixo nesta pasta canônica, não na raiz do repositório.
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ".[api,dev,multimodal]"
-pytest
+pip install -e ".[api,dev]"
+python -m pytest tests
+python -m build --wheel
 nexo-clinical health
-python -m deploy.server
 ```
 
-A API fica em `http://127.0.0.1:8000`; verifique `/health`.
+O teste do adaptador JavaScript é executado na raiz do repositório:
+`node --test integrations/pps/nexo-server.test.mjs`.
 
-## Limites clínicos
+## Inicialização protegida
 
-A plataforma é infraestrutura para suporte à decisão, não substitui validação clínica, protocolos institucionais ou regulamentação. O Source Registry inicial contém fontes estruturantes; diretrizes, protocolos e fármacos individuais devem ser ingeridos por domínio com revisão humana, versionamento e rastreabilidade.
+Configure `NEXO_API_TOKEN` no ambiente do servidor: segredo URL-safe aleatório de
+32–256 caracteres. Não o coloque em commits, frontend, URLs ou saídas de teste.
 
+Na pasta canônica, use `python -m deploy.server` ou `nexo-clinical-api`.
+Para ASGI, use `uvicorn deploy.server:create_app --factory`.
+O console e `main.py` com `PORT` delegam à entrada protegida.
+A fábrica `nexo_clinical.api.create_app` é interna; não deve ser usada para servir
+a aplicação diretamente. Não há instância pública `nexo_clinical.api:app`.
+O servidor falha antes de escutar se o token estiver ausente/inválido.
 
-## Incremento local de 23/09/2026 — não publicado
+Dockerfile e Dockerfile.railway da pasta canônica usam `python -m deploy.server`.
+Root Directory do serviço:
+`/NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform`.
+Porta: `PORT`, padrão 8000. Esta documentação não aplica configurações nem
+confirma uma implantação Railway.
 
-A branch `feat/live-evidence-pps-review` acrescenta busca bibliográfica real e
-rascunho de revisão ancorado em resumos, sem aprovação clínica automática.
-A produção permanece no commit base. Ver `docs/RETOMADA_2026-09-23.md` na raiz
-do repositório para evidências, limites, credenciais e a restrição 403 do GitHub.
-O trecho anterior descreve o pacote original e não comprova o estado publicado.
+## Contratos HTTP
+
+| Método | Caminho | Acesso / função |
+|---|---|---|
+| GET | /, /health | Público; identificação/saúde técnica |
+| GET | /v1/capabilities | Token principal ou de integração |
+| GET | /v1/sources | Token principal; registros de fontes |
+| POST | /v1/orchestrate | Token principal; roteamento de especialistas |
+| POST | /v1/safety/review | Token principal; regras técnicas de segurança |
+| POST | /v1/multimodal/ecg/assess | Token principal; metadados ECG |
+| GET | /v1/multimodal/ecg/qtc | Token principal; qt_ms e rr_ms positivos/finitos |
+| POST | /v1/multimodal/laboratory/analyze | Token principal; cálculos derivados |
+| POST | /v1/multimodal/imaging/assess | Token principal; metadados de imagem |
+| POST | /v1/evidence/search | Token principal ou de integração; pesquisa bibliográfica |
+| POST | /v1/clinical/review | Token principal ou de integração; rascunho com referências |
+| GET | /docs, /redoc, /openapi.json | Token principal |
+
+O token opcional `NEXO_INTEGRATION_TOKEN` deve ser diferente do principal e
+só acessa capabilities, pesquisa e revisão. Configure o provedor de revisão
+somente com `NEXO_REVIEW_API_KEY` e `NEXO_REVIEW_MODEL` no ambiente.
+Sem provedor, a revisão retorna `review_unavailable`; sem resumo utilizável,
+`insufficient_evidence`. Pesquisa externa indisponível retorna 503.
+Corpos upstream malformados/truncados geram erros sanitizados, sem copiar seu conteúdo.
+
+Laboratório aceita os campos numéricos estritos e finitos `na`, `cl`, `hco3`,
+`k`, `glucose_mg_dl`, `bun_mg_dl`. Campo ausente/null permanece desconhecido;
+não é substituído por zero. Strings/booleanos/não finitos são rejeitados com 422.
+Não há faixas clínicas novas nesta validação.
+
+ECG aceita formato `digital_signal`, `pdf_vector` ou `image`;
+`lead_count` é inteiro positivo, `speed_mm_s` e `gain_mm_mv` são números
+positivos e finitos. Ausência de metadados mantém `quality=insufficient`;
+dados inválidos retornam 422. Não foi imposto teto clínico.
+
+Safety aceita `text` string, `context` objeto e `citations` lista de strings/objetos.
+Em context, peso deve ser positivo/finito e input_quality deve ser string;
+os demais campos de contexto são preservados. Essa validação estrutural não
+confere a qualidade clínica das citações.
+
+O cálculo ponderal de quantidade aceita unidades sem tempo, como mg/kg.
+Unidades como mg/kg/h, mg/kg/dia e mg/kg/min são rejeitadas nessa função;
+conversões de taxa pertencem às funções próprias. Fórmulas e limites clínicos
+não foram alterados.
+
+## Limites e histórico
+
+As suítes usam entradas sintéticas/mocks. Testes e /health não validam doses,
+indicações, apresentações, prescrições, migração funcional ou integração com Sites.
+A API de roteamento não aprova tratamentos; revisão mantém
+`clinical_validated=false` e `prescribing_authorization=false`.
+
+A integração foi mesclada em main em 23/09/2026. Os documentos de preparação
+e RETOMADA_2026-09-23 descrevem aquele momento e seus bloqueios de publicação;
+não representam o estado atual do GitHub nem garantem o estado do Railway.
+A auditoria corretiva de 26/09/2026 preserva o motor e os documentos originais.

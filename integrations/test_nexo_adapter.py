@@ -8,6 +8,7 @@ import unittest
 from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
+from http.client import IncompleteRead
 
 import nexo_client as adapter
 import server
@@ -117,6 +118,19 @@ class AdapterTests(unittest.TestCase):
     def test_arbitrary_origin_rejected(self):
         with patch.dict(os.environ, {**ENV, "NEXO_API_URL": "http://127.0.0.1/"}):
             self.assertEqual(self.request("/v1/clinical/review")[0], 503)
+
+    def test_truncated_upstream_response_is_sanitized_503(self):
+        class Truncated(BytesIO):
+            def read(inner, *args):
+                raise IncompleteRead(b"synthetic-sensitive-body", 20)
+        class Opener:
+            def open(inner, *args, **kwargs):
+                return Truncated()
+        with patch.dict(os.environ, ENV), patch.object(adapter, "build_opener", return_value=Opener()):
+            status, body = self.request("/v1/clinical/review")
+        self.assertEqual(status, 503)
+        self.assertEqual(body["error"], "nexo_unavailable")
+        self.assertNotIn("synthetic-sensitive-body", json.dumps(body))
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ nexo-clinical = "nexo_clinical.cli:main"
 nexo-clinical-api = "nexo_clinical.api:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["nexo_clinical"]
+packages = ["nexo_clinical", "deploy"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "nexo_clinical/data/source_registry.json" = "nexo_clinical/data/source_registry.json"

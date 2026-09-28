@@ -36,3 +36,10 @@ class SafetyInput(StrictInput):
     text: str = ""
     context: SafetyContext = Field(default_factory=SafetyContext)
     citations: list[str | dict[str, Any]] = Field(default_factory=list)
+
+
+class PediatricPrescriptionInput(StrictInput):
+    diagnosis: str = Field(min_length=1, max_length=200)
+    weight_kg: float = Field(gt=0, le=90)
+    age: str = Field(min_length=1, max_length=120)
+    visit_date: str | None = Field(default=None, min_length=1, max_length=20)

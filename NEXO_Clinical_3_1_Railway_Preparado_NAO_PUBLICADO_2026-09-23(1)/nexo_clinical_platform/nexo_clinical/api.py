@@ -2,8 +2,9 @@ from __future__ import annotations
 import os
 from . import __version__
 from .models import ClinicalQuery
-from .input_models import ECGInput, LaboratoryInput, SafetyInput
+from .input_models import ECGInput, LaboratoryInput, PediatricPrescriptionInput, SafetyInput
 from .orchestrator import ClinicalOrchestrator
+from .pediatric_pharmacotherapy import generate_pediatric_prescription
 from .registry import SourceRegistry
 from .multimodal.ecg import assess_ecg_input,qtc_bazett,qtc_fridericia
 from .multimodal.laboratory import analyze_laboratory
@@ -50,6 +51,16 @@ def create_app():
             raise HTTPException(422, "Valores fora da capacidade numérica do cálculo.") from None
     @app.post("/v1/multimodal/imaging/assess")
     def imaging(payload:dict): return assess_image_input(payload)
+    @app.post("/v1/pediatric/prescription")
+    def pediatric_prescription(payload:PediatricPrescriptionInput):
+        return {
+            "prescription": generate_pediatric_prescription(
+                payload.diagnosis, payload.weight_kg, payload.age, payload.visit_date
+            ),
+            "clinical_validated": False,
+            "prescribing_authorization": False,
+            "requires_human_review": True,
+        }
     from .evidence_api import register_evidence_routes
     register_evidence_routes(app)
     return app

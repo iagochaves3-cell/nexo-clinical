@@ -55,6 +55,7 @@ confirma uma implantação Railway.
 | GET | /v1/multimodal/ecg/qtc | Token principal; qt_ms e rr_ms positivos/finitos |
 | POST | /v1/multimodal/laboratory/analyze | Token principal; cálculos derivados |
 | POST | /v1/multimodal/imaging/assess | Token principal; metadados de imagem |
+| POST | /v1/pediatric/prescription | Token principal; rascunho de receituário textual por diagnóstico/peso/idade |
 | POST | /v1/evidence/search | Token principal ou de integração; pesquisa bibliográfica |
 | POST | /v1/clinical/review | Token principal ou de integração; rascunho com referências |
 | GET | /docs, /redoc, /openapi.json | Token principal |
@@ -80,6 +81,10 @@ Safety aceita `text` string, `context` objeto e `citations` lista de strings/obj
 Em context, peso deve ser positivo/finito e input_quality deve ser string;
 os demais campos de contexto são preservados. Essa validação estrutural não
 confere a qualidade clínica das citações.
+
+Receituário pediátrico aceita `diagnosis`, `weight_kg`, `age` e `visit_date`
+(opcional) e retorna texto estruturado em seções. O cálculo é determinístico e
+não altera o status global de validação clínica ou autorização de prescrição.
 
 O cálculo ponderal de quantidade aceita unidades sem tempo, como mg/kg.
 Unidades como mg/kg/h, mg/kg/dia e mg/kg/min são rejeitadas nessa função;

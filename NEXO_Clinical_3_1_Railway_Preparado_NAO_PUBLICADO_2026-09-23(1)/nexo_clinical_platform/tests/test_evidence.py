@@ -56,6 +56,15 @@ def test_new_routes_are_protected(client, path, payload):
     assert post(client, "/v1/orchestrate", {"text": "ECG"}, SECONDARY).status_code == 401
 
 
+def test_pediatric_prescription_route_requires_primary_token(client):
+    payload = {"diagnosis": "Faringite Aguda Viral", "weight_kg": 14, "age": "2 anos", "visit_date": "28/09/2026"}
+    assert client.post("/v1/pediatric/prescription", json=payload).status_code == 401
+    assert post(client, "/v1/pediatric/prescription", payload, SECONDARY).status_code == 401
+    r = post(client, "/v1/pediatric/prescription", payload)
+    assert r.status_code == 200
+    assert "DIAGNÓSTICO\nFARINGITE AGUDA VIRAL" in r.json()["prescription"]
+
+
 @pytest.mark.parametrize("query", ["nome: Fulano", "CPF: 12345678901", "test@example.com", "http://localhost", "amoxi 12345678", "amoxi OR SRC:PPR", "peso 16"])
 def test_identifiers_and_provider_syntax_rejected(client, query):
     response = post(client, "/v1/evidence/search", {**SEARCH, "query": query})

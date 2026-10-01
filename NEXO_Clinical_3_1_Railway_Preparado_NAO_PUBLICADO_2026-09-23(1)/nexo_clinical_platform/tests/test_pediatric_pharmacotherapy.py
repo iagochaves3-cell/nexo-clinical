@@ -199,8 +199,7 @@ def test_ondansetron_age_and_weight_bands_are_enforced():
         calculate_ondansetron_dose(14, 5)
     with pytest.raises(ValueError, match="Peso fora"):
         calculate_ondansetron_dose(7.9, 48)
-    with pytest.raises(ValueError, match="faixas de dose"):
-        calculate_ondansetron_dose(15.05, 48)
+    assert calculate_ondansetron_dose(15.05, 48).dose_mg == 4.0
 
 
 def test_ondansetron_candidate_under_six_months_is_rejected():

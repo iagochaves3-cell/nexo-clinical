@@ -279,7 +279,7 @@ def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> Ondansetron
 
     if 8 <= weight_kg <= 15:
         intended_dose_mg = 2.0
-    elif 15.1 <= weight_kg <= 30:
+    elif 15 < weight_kg <= 30:
         intended_dose_mg = 4.0
     elif weight_kg > 30:
         intended_dose_mg = 8.0

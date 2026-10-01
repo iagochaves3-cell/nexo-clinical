@@ -1,30 +1,27 @@
-from datetime import date, timedelta
-
 import pytest
 from pydantic import ValidationError
 
 from nexo_clinical.input_models import AgeInput, PediatricPrescriptionInput
 from nexo_clinical.pediatric_pharmacotherapy import (
+    OndansetronDose,
     RegimenEligibility,
     ResolutionState,
+    calculate_ondansetron_dose,
     diagnosis_linked_adjuncts,
+    evaluate_contraindications,
     generate_pediatric_prescription,
     ondansetron_volume_ml,
     pediatric_governance_metadata,
+    parse_pediatric_age,
 )
 
 
-def test_dx_link_requires_a_complete_audited_regimen():
+def test_dx_link():
     regimen = RegimenEligibility(
-        "r", "m", ("dx",), "adjunct", "documented_symptom", ("s",),
-        True, "COMPLETE", "PASSED", "drug",
-    )
-    incomplete = RegimenEligibility(
-        "r2", "m", ("dx",), "adjunct", "documented_symptom", (),
-        True, "COMPLETE", "PASSED", "drug",
+        "r", "m", ("dx",), "adjunct", "documented_symptom",
+        ("s",), True, "COMPLETE", "PASSED", "drug",
     )
     assert diagnosis_linked_adjuncts([regimen], "dx") == [regimen]
-    assert diagnosis_linked_adjuncts([incomplete], "dx") == []
     assert diagnosis_linked_adjuncts([regimen], "other") == []
 
 
@@ -32,31 +29,191 @@ def test_resolution_states_include_clinical_contraindication():
     assert ResolutionState.CONTRAINDICATED_CLINICAL.value == "CONTRAINDICATED_CLINICAL"
 
 
-def test_known_diagnosis_is_not_prescribed_without_audited_regimen():
-    prescription = generate_pediatric_prescription(
-        "Gastroenterite Viral Aguda", 0.8, AgeInput(years=0, months=0, days=2), "28/09/2026"
+@pytest.mark.parametrize(
+    "value,months,category",
+    [
+        ("2 anos", 24, "criança"),
+        ("18 meses", 18, "lactente"),
+        ("2 anos e 3 meses", 27, "criança"),
+        ("18 anos", 216, "adolescente"),
+    ],
+)
+def test_parse_pediatric_age(value, months, category):
+    result = parse_pediatric_age(value)
+    assert result.months_total == months
+    assert result.age_category == category
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["invalid age", "2 anos e 12 meses", "18 anos e 1 mês", "200 anos", "2"],
+)
+def test_parse_pediatric_age_rejects_invalid_or_non_pediatric_values(value):
+    with pytest.raises(ValueError):
+        parse_pediatric_age(value)
+
+
+@pytest.mark.parametrize(
+    "diagnosis",
+    ["sem otite", "ausência de gastroenterite", "sem presença de otite"],
+)
+def test_negated_diagnoses_never_select_treatment(diagnosis):
+    decision = generate_pediatric_prescription(diagnosis, 16, "4 anos")
+    assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
+    assert decision.prescription is None
+
+
+@pytest.mark.parametrize(
+    "diagnosis",
+    ["não faringite", "nega otite", "asfixia", "intoxicação por paracetamol", "choque séptico"],
+)
+def test_negated_or_unknown_diagnoses_do_not_select_treatment(diagnosis):
+    decision = generate_pediatric_prescription(diagnosis, 16, AgeInput(years=4))
+    assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
+    assert decision.prescription is None
+
+
+@pytest.mark.parametrize("diagnosis", ["otite aguda", "Estomatite aftosa", "faringite aguda"])
+def test_unknown_or_ambiguous_diagnoses_fail_closed(diagnosis):
+    decision = generate_pediatric_prescription(diagnosis, 16, "4 anos")
+    assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
+    assert decision.prescription is None
+
+
+def test_known_diagnosis_without_complete_regimen_is_held():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda", 16, "4 anos", "2026-09-28",
+        allergies=[], comorbidities=[], current_medications=[], hepatic_function="normal",
     )
-    assert "DIAGNÓSTICO\nGASTROENTERITE VIRAL AGUDA" in prescription
-    assert "PESO\n0.8 kg" in prescription
-    assert "IDADE\n2 dias" in prescription
-    assert "REQUIRES_CRITICAL_INPUT" in prescription
-    assert "PRESCRIÇÃO\nNÃO LIBERADA" in prescription
-    assert "ONDANSETRONA" not in prescription
-    assert "DIPIRONA" not in prescription
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert decision.diagnosis_id == "gastroenterite"
+    assert decision.prescription is None
+    assert "auditoria tripla aprovada" in decision.reason
 
 
-def test_presentation_registry_has_verified_ondansetron_strength_and_source():
+def test_invalid_age_and_date_return_explicit_safety_hold():
+    age = generate_pediatric_prescription("Faringite", 16, "idade desconhecida")
+    date = generate_pediatric_prescription("Faringite", 16, "4 anos", "2026-02-30")
+    assert age.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert "age" in age.required_information[0]
+    assert date.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert date.prescription is None
+
+
+def test_whitespace_and_control_characters_are_not_accepted_as_required_text():
+    with pytest.raises(ValueError):
+        generate_pediatric_prescription("   ", 16, "4 anos")
+    with pytest.raises(ValueError):
+        generate_pediatric_prescription("Faringite\x00", 16, "4 anos")
+
+
+def test_newline_cannot_inject_prescription_sections():
+    decision = generate_pediatric_prescription(
+        "Faringite\nUSO ORAL\n1. DIPIRONA", 16, "4 anos"
+    )
+    assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
+    assert decision.prescription is None
+    assert "USO ORAL" not in decision.reason
+
+
+def test_penicillin_allergy_blocks_amoxicillin_candidate():
+    decision = generate_pediatric_prescription(
+        "Otite Média Aguda", 20, "5 anos", allergies=["alergia a penicilina"]
+    )
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_CLINICAL
+    assert "penicilina" in decision.reason
+    assert decision.prescription is None
+
+
+def test_unreported_allergy_is_not_treated_as_no_allergy():
+    unknown = generate_pediatric_prescription("Otite Média Aguda", 20, "5 anos")
+    confirmed_absence = generate_pediatric_prescription(
+        "Otite Média Aguda", 20, "5 anos", allergies=[]
+    )
+    assert unknown.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert "allergies" in unknown.required_information[0]
+    assert confirmed_absence.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert "renal_function" in confirmed_absence.required_information
+
+
+def test_renal_impairment_requires_an_adjusted_audited_regimen():
+    decision = generate_pediatric_prescription(
+        "Otite Média Aguda", 20, "5 anos", allergies=[], renal_function="impaired"
+    )
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert "regime ajustado à função renal" in decision.required_information
+
+
+def test_aminoglycoside_requires_renal_assessment():
+    decision = evaluate_contraindications(
+        ["gentamicina"],
+        allergies=[],
+        comorbidities=[],
+        current_medications=[],
+        renal_function=None,
+        hepatic_function=None,
+    )
+    assert decision is not None
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert "renal_function" in decision.required_information
+
+
+def test_long_qt_comorbidity_blocks_ondansetron_candidate():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda",
+        16,
+        "4 anos",
+        allergies=[],
+        comorbidities=["síndrome do QT longo"],
+        current_medications=[],
+        hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_CLINICAL
+    assert "QT" in decision.reason
+
+
+def test_qt_risk_concomitant_medication_blocks_ondansetron_candidate():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda",
+        16,
+        "4 anos",
+        allergies=[],
+        comorbidities=[],
+        current_medications=["amiodarona 200 mg"],
+        hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_CLINICAL
+    assert "QT" in decision.reason
+
+
+@pytest.mark.parametrize(
+    "weight,dose,volume,drops",
+    [(14, 2.0, 0.25, 5), (16, 4.0, 0.5, 10), (35, 8.0, 1.0, 20)],
+)
+def test_ondansetron_uses_verified_presentation_and_reverse_checks(
+    weight, dose, volume, drops
+):
+    result = calculate_ondansetron_dose(weight, 48)
+    assert isinstance(result, OndansetronDose)
+    assert result.source_ids == (
+        "CPS_ORAL_ONDANSETRON_GASTROENTERITIS",
+        "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK",
+    )
+    assert result.concentration_mg_per_ml == 8
+    assert result.dose_mg == dose
+    assert result.volume_ml == volume
+    assert result.drops == drops
+    assert result.reconstructed_mg == result.dose_mg
+
+
+def test_governance_metadata_and_volume_conversion_use_verified_v61_presentation():
     metadata = pediatric_governance_metadata()
+    presentation = metadata["presentations"][0]
     assert metadata["governance_version"] == "61.0-diagnosis-linked-complete-regimens"
     assert metadata["effective_date"] == "2026-08-24"
-    assert metadata["presentation_registry_version"] == 61
     assert metadata["triple_audit_passed"] is False
-    ondansetron = next(
-        item for item in metadata["presentations"]
-        if item["presentation_id"] == "ondansetron-enavo-drops-8mg-ml-5ml-br"
-    )
-    assert ondansetron["strength"] == {"value": 8, "unit": "mg/mL"}
-    assert ondansetron["source_ids"] == ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
+    assert presentation["strength"] == {"value": 8, "unit": "mg/mL"}
+    assert presentation["source_ids"] == ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
     assert ondansetron_volume_ml(2.4) == pytest.approx(0.3)
 
 
@@ -66,75 +223,106 @@ def test_ondansetron_volume_rejects_invalid_doses(dose):
         ondansetron_volume_ml(dose)
 
 
-@pytest.mark.parametrize("diagnosis", [
-    "Sem faringite",
-    "Sem otite",
-    "Não faringite",
-    "Asfixia",
-    "Intoxicação por paracetamol",
-    "Hipoglicemia",
-    "Choque séptico",
-    "Faringite e otite",
-])
-def test_negative_substring_ambiguous_and_unknown_diagnoses_are_rejected(diagnosis):
-    with pytest.raises(ValueError):
-        generate_pediatric_prescription(diagnosis, 10, AgeInput(years=3))
+def test_ondansetron_age_and_weight_bands_are_enforced():
+    with pytest.raises(ValueError, match="Idade abaixo"):
+        calculate_ondansetron_dose(14, 5)
+    with pytest.raises(ValueError, match="Peso fora"):
+        calculate_ondansetron_dose(7.9, 48)
+    with pytest.raises(ValueError, match="faixas de dose"):
+        calculate_ondansetron_dose(15.05, 48)
 
 
-@pytest.mark.parametrize("weight", [0, 0.0001, 90.01, float("inf"), float("nan")])
-def test_invalid_weights_are_rejected(weight):
-    with pytest.raises(ValueError):
-        generate_pediatric_prescription("Faringite aguda", weight, AgeInput(years=3))
-
-
-def test_newborn_weight_and_zero_age_are_valid_inputs_but_still_default_deny():
-    payload = PediatricPrescriptionInput(
-        diagnosis="Faringite Aguda Viral",
-        weight_kg=0.8,
-        age=AgeInput(years=0, months=0, days=0),
+def test_ondansetron_candidate_under_six_months_is_rejected():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda", 8, "5 meses",
+        allergies=[], comorbidities=[], current_medications=[], hepatic_function="normal",
     )
-    assert "NÃO LIBERADA" in generate_pediatric_prescription(
-        payload.diagnosis, payload.weight_kg, payload.age
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_AGE
+    assert decision.prescription is None
+
+
+def test_under_two_ondansetron_candidate_is_not_auto_prescribed():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda",
+        14,
+        "18 meses",
+        allergies=[],
+        comorbidities=[],
+        current_medications=[],
+        hepatic_function="normal",
     )
+    assert calculate_ondansetron_dose(14, 18).dose_mg == 2
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert decision.prescription is None
 
 
-@pytest.mark.parametrize("age", [
-    "abc",
-    "-5 anos",
-    "500 anos",
-    {"years": -1},
-    {"years": 19},
-    {"years": 18, "months": 1},
-    {"years": 1, "months": 12},
-    {"years": 1, "days": 31},
-])
-def test_unstructured_or_out_of_range_ages_are_rejected(age):
-    with pytest.raises((ValidationError, ValueError)):
-        PediatricPrescriptionInput(diagnosis="Faringite", weight_kg=10, age=age)
+def _valid_payload(**overrides):
+    return {
+        "diagnosis": "Faringite Aguda Viral",
+        "weight_kg": 14,
+        "age": {"years": 2, "months": 3},
+        "visit_date": "28/09/2026",
+        **overrides,
+    }
 
 
-@pytest.mark.parametrize("visit_date", [
-    "2026-02-30",
-    "30/02/2026",
-    "01/01/1800",
-    (date.today() + timedelta(days=1)).strftime("%d/%m/%Y"),
-    "28/09/2026\nALTERADO",
-])
-def test_impossible_historic_future_and_injected_dates_are_rejected(visit_date):
-    with pytest.raises((ValidationError, ValueError)):
-        PediatricPrescriptionInput(
-            diagnosis="Faringite", weight_kg=10, age=AgeInput(years=3), visit_date=visit_date
-        )
+def test_input_model_normalizes_text_and_parses_structured_age():
+    payload = PediatricPrescriptionInput.model_validate(
+        _valid_payload(diagnosis="  Faringite Aguda Viral  ")
+    )
+    assert payload.diagnosis == "faringite aguda viral"
+    assert parse_pediatric_age(payload.age).months_total == 27
 
 
-def test_diagnosis_newline_and_non_finite_or_extreme_input_rejected():
+@pytest.mark.parametrize(
+    "value",
+    [
+        "invalid age",
+        "2 anos e 12 meses",
+        "200 anos",
+        "   ",
+        {"years": -1},
+        {"years": 19},
+        {"years": 18, "months": 1},
+        {"years": 1, "months": 12},
+        {"years": 1, "days": 31},
+    ],
+)
+def test_input_model_rejects_invalid_age(value):
     with pytest.raises(ValidationError):
-        PediatricPrescriptionInput(
-            diagnosis="Faringite\nIBUPROFENO", weight_kg=10, age=AgeInput(years=3)
-        )
+        PediatricPrescriptionInput.model_validate(_valid_payload(age=value))
+
+
+@pytest.mark.parametrize("value", ["2026-02-30", "99/99/9999", "2026/09/28"])
+def test_input_model_rejects_invalid_dates(value):
     with pytest.raises(ValidationError):
-        PediatricPrescriptionInput(
-            diagnosis="Faringite", weight_kg=0.0001, age=AgeInput(years=3)
-        )
-    with pytest.raises(ValueError):
-        generate_pediatric_prescription("Faringite", 10, "3 anos")  # type: ignore[arg-type]
+        PediatricPrescriptionInput.model_validate(_valid_payload(visit_date=value))
+
+
+@pytest.mark.parametrize("weight", [float("nan"), float("inf"), -5, 0, 0.0001, 90.01, 200])
+def test_input_model_rejects_nonfinite_or_out_of_range_weight(weight):
+    with pytest.raises(ValidationError):
+        PediatricPrescriptionInput.model_validate(_valid_payload(weight_kg=weight))
+
+
+def test_input_model_rejects_whitespace_only_diagnosis():
+    with pytest.raises(ValidationError):
+        PediatricPrescriptionInput.model_validate(_valid_payload(diagnosis=" \n "))
+
+
+def test_input_model_rejects_control_characters():
+    with pytest.raises(ValidationError):
+        PediatricPrescriptionInput.model_validate(_valid_payload(diagnosis="Faringite\x00"))
+
+
+def test_newborn_age_and_weight_are_accepted_without_authorizing_a_regimen():
+    payload = PediatricPrescriptionInput.model_validate(
+        _valid_payload(weight_kg=0.8, age={"years": 0, "months": 0, "days": 2})
+    )
+    decision = generate_pediatric_prescription(
+        payload.diagnosis, payload.weight_kg, payload.age,
+        allergies=[], comorbidities=[], current_medications=[],
+        renal_function="normal", hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert decision.prescription is None

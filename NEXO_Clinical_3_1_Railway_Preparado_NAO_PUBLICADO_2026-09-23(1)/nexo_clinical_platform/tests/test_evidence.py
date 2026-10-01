@@ -62,11 +62,12 @@ def test_pediatric_prescription_route_requires_primary_token(client):
     assert post(client, "/v1/pediatric/prescription", payload, SECONDARY).status_code == 401
     r = post(client, "/v1/pediatric/prescription", payload)
     assert r.status_code == 200
-    assert "DIAGNÓSTICO\nFARINGITE AGUDA VIRAL" in r.json()["prescription"]
-    assert "NÃO LIBERADA" in r.json()["prescription"]
-    assert r.json()["clinical_validated"] is False
-    assert r.json()["prescribing_authorization"] is False
-    assert r.json()["requires_human_review"] is True
+    result = r.json()
+    assert result["resolution_state"] == "REQUIRES_CRITICAL_INPUT"
+    assert result["prescription"] is None
+    assert result["clinical_validated"] is False
+    assert result["prescribing_authorization"] is False
+    assert result["requires_human_review"] is True
 
 
 @pytest.mark.parametrize("query", ["nome: Fulano", "CPF: 12345678901", "test@example.com", "http://localhost", "amoxi 12345678", "amoxi OR SRC:PPR", "peso 16"])

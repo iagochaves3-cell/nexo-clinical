@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from functools import lru_cache
-from importlib.resources import files
 import json
 import math
+from pathlib import Path
 import re
 import unicodedata
 from typing import Iterable
 
-from .input_models import AgeInput, parse_visit_date
+from .input_models import AgeInput
 
 
 class ResolutionState(StrEnum):
@@ -51,12 +51,11 @@ class RegimenEligibility:
 
 
 def diagnosis_linked_candidates(
-    regimens: Iterable[RegimenEligibility],
-    diagnosis_id: str,
-    role: str | None = None,
+    regimens: Iterable[RegimenEligibility], diagnosis_id: str, role: str | None = None
 ) -> list[RegimenEligibility]:
     return [
-        regimen for regimen in regimens
+        regimen
+        for regimen in regimens
         if regimen.active
         and diagnosis_id in regimen.diagnosis_ids
         and (role is None or regimen.role == role)
@@ -70,24 +69,230 @@ def diagnosis_linked_adjuncts(
     return diagnosis_linked_candidates(regimens, diagnosis_id, "adjunct")
 
 
-_DATA = files("nexo_clinical.data")
+@dataclass(frozen=True)
+class PediatricAge:
+    months_total: int
+    age_category: str
+
+
+@dataclass(frozen=True)
+class PrescriptionDecision:
+    resolution_state: ResolutionState
+    reason: str
+    required_information: tuple[str, ...] = ()
+    diagnosis_id: str | None = None
+    age: PediatricAge | None = None
+    prescription: str | None = None
+
+
+@dataclass(frozen=True)
+class OndansetronDose:
+    dose_mg: float
+    volume_ml: float
+    drops: int
+    concentration_mg_per_ml: float
+    reconstructed_mg: float
+    source_ids: tuple[str, ...]
+
+
+MAX_PEDIATRIC_AGE_MONTHS = 18 * 12
+ONDANSETRON_MIN_AGE_MONTHS = 6
+ONDANSETRON_MAX_AGE_MONTHS = 12 * 12
+ONDANSETRON_PRESENTATION_ID = "ondansetron-enavo-drops-8mg-ml-5ml-br"
+ONDANSETRON_SOURCE_ID = "CPS_ORAL_ONDANSETRON_GASTROENTERITIS"
+PRESENTATION_SOURCE_ID = "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"
+
+_YEAR_AGE = re.compile(
+    r"(?P<years>\d+)\s*anos?(?:\s+e\s+(?P<months>\d+)\s*m[eê]s(?:es)?)?"
+)
+_MONTH_AGE = re.compile(r"(?P<months>\d+)\s*m[eê]s(?:es)?")
+_NEGATION = re.compile(
+    r"\b(?:sem(?:\s+presenca\s+de)?|ausencia\s+de|nao|nega|negando|descarta|descartado)\b"
+)
+_DIAGNOSIS_ALIASES = {
+    "faringite": "faringite",
+    "faringite aguda viral": "faringite",
+    "gastroenterite": "gastroenterite",
+    "gastroenterite viral aguda": "gastroenterite",
+    "otite media aguda": "otite_media_aguda",
+    "amigdalite bacteriana": "amigdalite_bacteriana",
+    "sinusite bacteriana": "sinusite_bacteriana",
+}
+_AMBIGUOUS_DIAGNOSES = {
+    "amigdalite",
+    "amigdalite aguda",
+    "faringite aguda",
+    "otite",
+    "sinusite",
+    "sinusite aguda",
+}
+_DIAGNOSIS_CANDIDATE_MEDICATIONS = {
+    "gastroenterite": ("ondansetron",),
+    "otite_media_aguda": ("amoxicillin",),
+    "amigdalite_bacteriana": ("amoxicillin",),
+    "sinusite_bacteriana": ("amoxicillin",),
+}
+_MEDICATION_ALLERGENS = {
+    "amoxicillin": ("amoxicillin", "amoxicilina", "penicillin", "penicilina"),
+    "ondansetron": ("ondansetron", "ondansetrona"),
+}
+_RENAL_ASSESSMENT_MEDICATIONS = {
+    "amoxicillin",
+    "aminoglycoside",
+    "gentamicin",
+    "amikacin",
+    "tobramycin",
+}
+_ONDANSETRON_QT_RISK_MEDICATIONS = {
+    "amiodarone",
+    "amiodarona",
+    "sotalol",
+    "quinidine",
+    "quinidina",
+    "clarithromycin",
+    "claritromicina",
+    "azithromycin",
+    "azitromicina",
+    "citalopram",
+    "escitalopram",
+    "domperidone",
+    "domperidona",
+}
+_MEDICATION_ALIASES = {
+    "amoxicilina": "amoxicillin",
+    "ondansetrona": "ondansetron",
+    "gentamicina": "gentamicin",
+    "amicacina": "amikacin",
+    "tobramicina": "tobramycin",
+}
+
+
+def _clean_text(value: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError("O campo deve ser texto.")
+    cleaned = " ".join(value.split())
+    if any(unicodedata.category(char) == "Cc" for char in cleaned):
+        raise ValueError("O campo contém caracteres de controle inválidos.")
+    return cleaned
+
+
+def _fold(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def parse_pediatric_age(value: str | AgeInput) -> PediatricAge:
+    if isinstance(value, AgeInput):
+        return PediatricAge(value.months_total, value.age_category)
+    age_text = _fold(_clean_text(value))
+    match = _YEAR_AGE.fullmatch(age_text)
+    if match:
+        years = int(match.group("years"))
+        months = int(match.group("months") or 0)
+        if months >= 12:
+            raise ValueError("Os meses adicionais devem estar entre 0 e 11.")
+        total_months = years * 12 + months
+    else:
+        match = _MONTH_AGE.fullmatch(age_text)
+        if not match:
+            raise ValueError("Idade deve usar anos e/ou meses.")
+        total_months = int(match.group("months"))
+
+    if total_months > MAX_PEDIATRIC_AGE_MONTHS:
+        raise ValueError("Idade fora do escopo pediátrico (0 a 18 anos).")
+    if total_months < 24:
+        category = "lactente"
+    elif total_months < 144:
+        category = "criança"
+    else:
+        category = "adolescente"
+    return PediatricAge(months_total=total_months, age_category=category)
+
+
+def _parse_visit_date(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = _clean_text(value)
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", cleaned):
+            parsed = date.fromisoformat(cleaned)
+        elif re.fullmatch(r"\d{2}/\d{2}/\d{4}", cleaned):
+            parsed = datetime.strptime(cleaned, "%d/%m/%Y").date()
+        else:
+            raise ValueError
+    except ValueError:
+        return None
+    return parsed.strftime("%d/%m/%Y")
+
+
+def _load_ondansetron_presentation() -> dict[str, object]:
+    data_dir = Path(__file__).with_name("data")
+    try:
+        presentations = json.loads(
+            (data_dir / "presentations_brazil_v61.json").read_text()
+        )
+        addendum = json.loads(
+            (data_dir / "source-registry-addendum-v61.json").read_text()
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Registro da apresentação ou da fonte indisponível.") from exc
+    presentation = next(
+        (
+            row
+            for row in presentations
+            if row.get("presentation_id") == ONDANSETRON_PRESENTATION_ID
+        ),
+        None,
+    )
+    source_ids = {row.get("source_id") for row in addendum.get("sources", [])}
+    if (
+        presentation is None
+        or presentation.get("brazil_status") != "COMMERCIAL_PRESENCE_CROSSCHECKED"
+        or PRESENTATION_SOURCE_ID not in presentation.get("source_ids", [])
+        or PRESENTATION_SOURCE_ID not in source_ids
+        or ONDANSETRON_SOURCE_ID not in source_ids
+    ):
+        raise ValueError("Apresentação ou fonte da ondansetrona não verificada.")
+    strength = presentation.get("strength")
+    if not isinstance(strength, dict) or strength.get("unit") != "mg/mL":
+        raise ValueError("Concentração da apresentação não verificada.")
+    concentration = strength.get("value")
+    drops_per_ml = presentation.get("drops_per_mL")
+    active_mg_per_drop = presentation.get("active_mg_per_drop")
+    if (
+        not isinstance(concentration, (int, float))
+        or not math.isfinite(concentration)
+        or concentration <= 0
+        or not isinstance(drops_per_ml, int)
+        or drops_per_ml <= 0
+        or not isinstance(active_mg_per_drop, (int, float))
+        or not math.isclose(
+            concentration / drops_per_ml, active_mg_per_drop, rel_tol=0, abs_tol=1e-9
+        )
+    ):
+        raise ValueError("Concentração e fator de gotas inconsistentes.")
+    return presentation
 
 
 @lru_cache(maxsize=1)
-def pediatric_governance_metadata() -> dict:
-    governance_text = _DATA.joinpath("pediatric-pharmacotherapy-governance.yaml").read_text(
-        encoding="utf-8"
-    )
-    presentation_records = json.loads(
-        _DATA.joinpath("presentations_brazil_v61.json").read_text(encoding="utf-8")
-    )
-    source_registry = json.loads(
-        _DATA.joinpath("source-registry-addendum-v61.json").read_text(encoding="utf-8")
-    )
+def pediatric_governance_metadata() -> dict[str, object]:
+    data_dir = Path(__file__).with_name("data")
+    try:
+        governance = (data_dir / "pediatric-pharmacotherapy-governance.yaml").read_text(
+            encoding="utf-8"
+        )
+        source_registry = json.loads(
+            (data_dir / "source-registry-addendum-v61.json").read_text(encoding="utf-8")
+        )
+        presentations = json.loads(
+            (data_dir / "presentations_brazil_v61.json").read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Configuração ou registry pediátrico indisponível.") from exc
 
-    version = re.search(r"(?m)^  version: ([^\r\n]+)$", governance_text)
-    effective_date = re.search(r"(?m)^  effective_date: ([^\r\n]+)$", governance_text)
-    required_governance = (
+    version = re.search(r"(?m)^  version: ([^\r\n]+)$", governance)
+    effective_date = re.search(r"(?m)^  effective_date: ([^\r\n]+)$", governance)
+    required_policy = (
         "id: pediatric-pharmacotherapy-governance",
         "default: deny",
         "- diagnosis_relation_is_explicit",
@@ -98,92 +303,172 @@ def pediatric_governance_metadata() -> dict:
         "- triple_audit_passed",
         "lexical_matching_allowed: false",
     )
-    if (
-        not version
-        or not effective_date
-        or not all(item in governance_text for item in required_governance)
-    ):
+    if not version or not effective_date or not all(item in governance for item in required_policy):
         raise ValueError("Configuração de governança pediátrica inválida.")
 
-    source_ids = {item.get("source_id") for item in source_registry.get("sources", [])}
-    presentations = []
-    for item in presentation_records:
-        strength = item.get("strength", {})
-        item_source_ids = item.get("source_ids", [])
-        if (
-            item.get("brazil_status") != "COMMERCIAL_PRESENCE_CROSSCHECKED"
-            or item.get("last_verified") != effective_date.group(1)
-            or not item_source_ids
-            or not set(item_source_ids).issubset(source_ids)
-            or not isinstance(strength.get("value"), (int, float))
-            or strength.get("value", 0) <= 0
-            or not strength.get("unit")
-        ):
-            continue
-        presentations.append({
-            "presentation_id": item["presentation_id"],
-            "generic_name": item["generic_name"],
-            "strength": strength,
-            "dosage_form": item["dosage_form"],
-            "route": item["route"],
-            "source_ids": item_source_ids,
-            "last_verified": item["last_verified"],
-        })
-
+    registered_sources = {
+        row.get("source_id") for row in source_registry.get("sources", [])
+    }
+    verified_presentations = [
+        {
+            "presentation_id": row["presentation_id"],
+            "generic_name": row["generic_name"],
+            "strength": row["strength"],
+            "source_ids": row["source_ids"],
+            "last_verified": row["last_verified"],
+        }
+        for row in presentations
+        if row.get("presentation_id") == ONDANSETRON_PRESENTATION_ID
+        and row.get("brazil_status") == "COMMERCIAL_PRESENCE_CROSSCHECKED"
+        and row.get("last_verified") == effective_date.group(1)
+        and row.get("source_ids")
+        and set(row["source_ids"]).issubset(registered_sources)
+    ]
+    if not verified_presentations:
+        raise ValueError("Nenhuma apresentação pediátrica brasileira foi verificada.")
     return {
         "configuration_id": "pediatric-pharmacotherapy-governance",
         "governance_version": version.group(1),
         "effective_date": effective_date.group(1),
-        "source_registry_version": source_registry["registry_version"],
+        "source_registry_version": source_registry.get("registry_version"),
         "presentation_registry_version": 61,
-        "presentations": presentations,
+        "presentations": verified_presentations,
         "complete_regimen_count": 0,
         "triple_audit_passed": False,
     }
 
 
 def ondansetron_volume_ml(dose_mg: float) -> float:
-    if isinstance(dose_mg, bool) or not isinstance(dose_mg, (int, float)) or not math.isfinite(dose_mg) or dose_mg <= 0:
+    if (
+        isinstance(dose_mg, bool)
+        or not isinstance(dose_mg, (int, float))
+        or not math.isfinite(dose_mg)
+        or dose_mg <= 0
+    ):
         raise ValueError("dose_mg deve ser positivo e finito.")
-    presentation = next(
-        (
-            item for item in pediatric_governance_metadata()["presentations"]
-            if item["presentation_id"] == "ondansetron-enavo-drops-8mg-ml-5ml-br"
-        ),
-        None,
+    strength = _load_ondansetron_presentation()["strength"]
+    return float(dose_mg) / float(strength["value"])
+
+
+def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> OndansetronDose:
+    """Calculate the CPS single-dose bands using only the cross-checked Enavo drops."""
+    _validate_weight(weight_kg)
+    if age_months < ONDANSETRON_MIN_AGE_MONTHS:
+        raise ValueError("Idade abaixo da população coberta pela referência selecionada.")
+    if age_months > ONDANSETRON_MAX_AGE_MONTHS:
+        raise ValueError("Idade acima da população coberta pela referência selecionada.")
+
+    if 8 <= weight_kg <= 15:
+        intended_dose_mg = 2.0
+    elif 15.1 <= weight_kg <= 30:
+        intended_dose_mg = 4.0
+    elif weight_kg > 30:
+        intended_dose_mg = 8.0
+    else:
+        raise ValueError("Peso fora das faixas de dose da referência selecionada.")
+
+    presentation = _load_ondansetron_presentation()
+    strength = presentation["strength"]
+    concentration = float(strength["value"])
+    drops_per_ml = int(presentation["drops_per_mL"])
+    active_mg_per_drop = float(presentation["active_mg_per_drop"])
+    volume_ml = round(intended_dose_mg / concentration, 2)
+    drops = round(volume_ml * drops_per_ml)
+    reconstructed_mg = drops * active_mg_per_drop
+    if not math.isclose(reconstructed_mg, intended_dose_mg, rel_tol=0, abs_tol=1e-9):
+        raise ValueError("Falha na conferência reversa mg↔mL↔gotas.")
+    return OndansetronDose(
+        dose_mg=intended_dose_mg,
+        volume_ml=volume_ml,
+        drops=drops,
+        concentration_mg_per_ml=concentration,
+        reconstructed_mg=reconstructed_mg,
+        source_ids=(ONDANSETRON_SOURCE_ID, PRESENTATION_SOURCE_ID),
     )
-    if presentation is None or presentation["strength"]["unit"] != "mg/mL":
-        raise ValueError("Apresentação brasileira validada de ondansetrona indisponível.")
-    return float(dose_mg) / presentation["strength"]["value"]
 
 
-_DIAGNOSIS_PATTERNS = {
-    "faringite": re.compile(r"\bfaringite\b"),
-    "resfriado": re.compile(r"\bresfriado\b"),
-    "ivas": re.compile(r"\bivas\b"),
-    "gastroenterite": re.compile(r"\bgastroenterite\b"),
-    "otite": re.compile(r"\botite\b"),
-    "amigdalite": re.compile(r"\bamigdalite\b"),
-    "sinusite": re.compile(r"\bsinusite\b"),
-}
-_NEGATION = re.compile(r"\b(?:sem|nao|nega|negando|ausencia de|ausente|descarta|descartado)\b")
+def _allergy_conflict(medication_id: str, allergies: list[str]) -> str | None:
+    normalized_allergies = [_fold(_clean_text(item)) for item in allergies]
+    for allergen in _MEDICATION_ALLERGENS.get(medication_id, ()):
+        normalized_allergen = _fold(allergen)
+        if any(
+            normalized_allergen == allergy
+            or f" {normalized_allergen} " in f" {allergy} "
+            for allergy in normalized_allergies
+        ):
+            return allergen
+    return None
 
 
-def _normalize_diagnosis(value: str) -> tuple[str, str]:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("diagnosis é obrigatório.")
-    if any(unicodedata.category(char) == "Cc" for char in value):
-        raise ValueError("diagnosis deve ser texto em uma única linha.")
-    normalized = "".join(
-        char for char in unicodedata.normalize("NFKD", value.casefold())
-        if not unicodedata.combining(char)
-    )
-    matched = [key for key, pattern in _DIAGNOSIS_PATTERNS.items() if pattern.search(normalized)]
-    if _NEGATION.search(normalized) and matched:
-        raise ValueError("Diagnóstico negado não pode selecionar farmacoterapia.")
-    if len(matched) != 1:
-        raise ValueError("Diagnóstico desconhecido ou ambíguo; farmacoterapia não liberada.")
-    return value.strip(), matched[0]
+def evaluate_contraindications(
+    medication_ids: Iterable[str],
+    *,
+    allergies: list[str] | None,
+    comorbidities: list[str] | None,
+    current_medications: list[str] | None,
+    renal_function: str | None,
+    hepatic_function: str | None,
+) -> PrescriptionDecision | None:
+    """Check allergy, renal, QT/comorbidity, hepatic, and medication-history requirements.
+
+    Amoxicillin and aminoglycosides require renal review. Ondansetron requires
+    allergy, QT/comorbidity, concomitant-medication, and hepatic review.
+    """
+    missing: set[str] = set()
+    for medication_id in medication_ids:
+        medication_id = _fold(_clean_text(medication_id))
+        medication_id = _MEDICATION_ALIASES.get(medication_id, medication_id)
+        if allergies is None:
+            missing.add("allergies (incluindo confirmação de ausência)")
+        else:
+            allergen = _allergy_conflict(medication_id, allergies)
+            if allergen:
+                return PrescriptionDecision(
+                    ResolutionState.CONTRAINDICATED_CLINICAL,
+                    f"alergia registrada compatível com {medication_id}: {allergen}",
+                )
+
+        if medication_id in _RENAL_ASSESSMENT_MEDICATIONS:
+            if renal_function in (None, "unknown"):
+                missing.add("renal_function")
+            elif renal_function == "impaired":
+                missing.add("regime ajustado à função renal")
+
+        if medication_id == "ondansetron":
+            if comorbidities is None:
+                missing.add("comorbidities (incluindo confirmação de ausência)")
+            elif any(
+                marker in _fold(_clean_text(item))
+                for item in comorbidities
+                for marker in ("long qt", "qt longo", "prolongamento do qt")
+            ):
+                return PrescriptionDecision(
+                    ResolutionState.CONTRAINDICATED_CLINICAL,
+                    "comorbidade compatível com risco de prolongamento do intervalo QT",
+                )
+            if current_medications is None:
+                missing.add("current_medications")
+            elif any(
+                f" {risk_medication} " in f" {_fold(_clean_text(item))} "
+                for item in current_medications
+                for risk_medication in _ONDANSETRON_QT_RISK_MEDICATIONS
+            ):
+                return PrescriptionDecision(
+                    ResolutionState.CONTRAINDICATED_CLINICAL,
+                    "medicamento em uso com risco de prolongamento do intervalo QT",
+                )
+            if hepatic_function in (None, "unknown"):
+                missing.add("hepatic_function")
+            elif hepatic_function == "impaired":
+                missing.add("regime avaliado para função hepática")
+
+    if missing:
+        return PrescriptionDecision(
+            ResolutionState.REQUIRES_CRITICAL_INPUT,
+            "avaliação de contraindicações incompleta; ausência de informação não equivale a ausência de risco",
+            tuple(sorted(missing)),
+        )
+    return None
 
 
 def _validate_weight(weight_kg: float) -> float:
@@ -198,34 +483,106 @@ def _validate_weight(weight_kg: float) -> float:
     return float(weight_kg)
 
 
-def _format_date(value: str | None) -> str:
-    if value is None:
-        return date.today().strftime("%d/%m/%Y")
-    return parse_visit_date(value).strftime("%d/%m/%Y")
+def _diagnosis_state(diagnosis: str) -> tuple[str | None, str | None]:
+    normalized = _fold(diagnosis)
+    if _NEGATION.search(normalized):
+        return None, "diagnóstico negado"
+    diagnosis_id = _DIAGNOSIS_ALIASES.get(normalized)
+    if diagnosis_id:
+        return diagnosis_id, None
+    if normalized in _AMBIGUOUS_DIAGNOSES:
+        return None, "diagnóstico ambíguo; especifique o diagnóstico"
+    return None, "diagnóstico desconhecido ou sem vínculo explícito"
 
 
 def generate_pediatric_prescription(
     diagnosis: str,
     weight_kg: float,
-    age: AgeInput,
+    age: str | AgeInput,
     visit_date: str | None = None,
-) -> str:
-    diagnosis, _ = _normalize_diagnosis(diagnosis)
+    *,
+    allergies: list[str] | None = None,
+    comorbidities: list[str] | None = None,
+    current_medications: list[str] | None = None,
+    renal_function: str | None = None,
+    hepatic_function: str | None = None,
+) -> PrescriptionDecision:
+    diagnosis = _clean_text(diagnosis)
+    age_text = age if isinstance(age, AgeInput) else _clean_text(age)
+    if not diagnosis:
+        raise ValueError("diagnosis é obrigatório.")
+    if not age_text:
+        raise ValueError("age é obrigatório.")
     weight = _validate_weight(weight_kg)
-    if not isinstance(age, AgeInput):
-        raise ValueError("age deve conter anos, meses e dias estruturados.")
-    visit = _format_date(visit_date)
-    metadata = pediatric_governance_metadata()
+    try:
+        structured_age = parse_pediatric_age(age_text)
+    except ValueError as exc:
+        return PrescriptionDecision(
+            ResolutionState.REQUIRES_CRITICAL_INPUT,
+            str(exc),
+            ("age (anos/meses, entre 0 e 18 anos)",),
+        )
+    if _parse_visit_date(visit_date) is None and visit_date is not None:
+        return PrescriptionDecision(
+            ResolutionState.REQUIRES_CRITICAL_INPUT,
+            "data da consulta inválida",
+            ("visit_date no formato YYYY-MM-DD ou DD/MM/YYYY",),
+            age=structured_age,
+        )
 
-    output = [
-        f"DIAGNÓSTICO\n{diagnosis.upper()}",
-        f"PESO\n{weight:g} kg",
-        f"IDADE\n{age.display()}",
-        f"DATA\n{visit}",
-        f"ESTADO DE RESOLUÇÃO\n{ResolutionState.REQUIRES_CRITICAL_INPUT.value}",
-        "PRESCRIÇÃO\nNÃO LIBERADA: não há esquema pediátrico completo, vinculado ao diagnóstico e aprovado em auditoria tripla no registry.",
-        f"GOVERNANÇA\n{metadata['configuration_id']} v{metadata['governance_version']} (efetiva em {metadata['effective_date']})",
-        "REVISÃO HUMANA OBRIGATÓRIA\nSIM",
-        "AUTORIZAÇÃO DE PRESCRIÇÃO\nNÃO",
-    ]
-    return "\n\n".join(output)
+    diagnosis_id, diagnosis_error = _diagnosis_state(diagnosis)
+    if diagnosis_error:
+        return PrescriptionDecision(
+            ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS,
+            diagnosis_error,
+            ("diagnóstico afirmativo e não ambíguo",),
+            age=structured_age,
+        )
+
+    candidate_medications = _DIAGNOSIS_CANDIDATE_MEDICATIONS.get(diagnosis_id, ())
+    if "ondansetron" in candidate_medications:
+        if not ONDANSETRON_MIN_AGE_MONTHS <= structured_age.months_total <= ONDANSETRON_MAX_AGE_MONTHS:
+            return PrescriptionDecision(
+                ResolutionState.CONTRAINDICATED_AGE,
+                "idade fora da população pediátrica coberta pela referência de ondansetrona selecionada",
+                diagnosis_id=diagnosis_id,
+                age=structured_age,
+            )
+        try:
+            calculate_ondansetron_dose(weight, structured_age.months_total)
+        except ValueError as exc:
+            return PrescriptionDecision(
+                ResolutionState.REQUIRES_CRITICAL_INPUT,
+                str(exc),
+                ("peso/faixa de dose ou concentração validada",),
+                diagnosis_id=diagnosis_id,
+                age=structured_age,
+            )
+
+    contraindication = evaluate_contraindications(
+        candidate_medications,
+        allergies=allergies,
+        comorbidities=comorbidities,
+        current_medications=current_medications,
+        renal_function=renal_function,
+        hepatic_function=hepatic_function,
+    )
+    if contraindication:
+        return PrescriptionDecision(
+            contraindication.resolution_state,
+            contraindication.reason,
+            contraindication.required_information,
+            diagnosis_id,
+            structured_age,
+        )
+
+    return PrescriptionDecision(
+        ResolutionState.REQUIRES_CRITICAL_INPUT,
+        "não há regime completo com vínculo diagnóstico explícito e auditoria tripla aprovada; nenhum medicamento foi gerado",
+        (
+            "regime operacional com fonte para indicação, população, dose, intervalo, duração e monitoramento",
+            "apresentação brasileira e auditoria estrutural, farmacêutica/matemática e clínica/regulatória",
+        ),
+        diagnosis_id=diagnosis_id,
+        age=structured_age,
+    )

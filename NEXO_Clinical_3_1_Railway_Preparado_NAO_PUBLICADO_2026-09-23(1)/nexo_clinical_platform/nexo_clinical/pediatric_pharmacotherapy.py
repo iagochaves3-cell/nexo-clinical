@@ -3,12 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
+from functools import lru_cache
 import json
 import math
 from pathlib import Path
 import re
 import unicodedata
 from typing import Iterable
+
+from .input_models import AgeInput
 
 
 class ResolutionState(StrEnum):
@@ -104,7 +107,7 @@ _YEAR_AGE = re.compile(
 )
 _MONTH_AGE = re.compile(r"(?P<months>\d+)\s*m[eê]s(?:es)?")
 _NEGATION = re.compile(
-    r"\b(?:sem(?:\s+presenca\s+de)?|ausencia\s+de|nao\s+(?:tem|apresenta|evidencia))\b"
+    r"\b(?:sem(?:\s+presenca\s+de)?|ausencia\s+de|nao|nega|negando|descarta|descartado)\b"
 )
 _DIAGNOSIS_ALIASES = {
     "faringite": "faringite",
@@ -178,7 +181,9 @@ def _fold(value: str) -> str:
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
-def parse_pediatric_age(value: str) -> PediatricAge:
+def parse_pediatric_age(value: str | AgeInput) -> PediatricAge:
+    if isinstance(value, AgeInput):
+        return PediatricAge(value.months_total, value.age_category)
     age_text = _fold(_clean_text(value))
     match = _YEAR_AGE.fullmatch(age_text)
     if match:
@@ -267,6 +272,82 @@ def _load_ondansetron_presentation() -> dict[str, object]:
     ):
         raise ValueError("Concentração e fator de gotas inconsistentes.")
     return presentation
+
+
+@lru_cache(maxsize=1)
+def pediatric_governance_metadata() -> dict[str, object]:
+    data_dir = Path(__file__).with_name("data")
+    try:
+        governance = (data_dir / "pediatric-pharmacotherapy-governance.yaml").read_text(
+            encoding="utf-8"
+        )
+        source_registry = json.loads(
+            (data_dir / "source-registry-addendum-v61.json").read_text(encoding="utf-8")
+        )
+        presentations = json.loads(
+            (data_dir / "presentations_brazil_v61.json").read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Configuração ou registry pediátrico indisponível.") from exc
+
+    version = re.search(r"(?m)^  version: ([^\r\n]+)$", governance)
+    effective_date = re.search(r"(?m)^  effective_date: ([^\r\n]+)$", governance)
+    required_policy = (
+        "id: pediatric-pharmacotherapy-governance",
+        "default: deny",
+        "- diagnosis_relation_is_explicit",
+        "- patient_population_matches",
+        "- complete_operational_regimen",
+        "- brazilian_presentation_verified",
+        "- regimen_level_source_present",
+        "- triple_audit_passed",
+        "lexical_matching_allowed: false",
+    )
+    if not version or not effective_date or not all(item in governance for item in required_policy):
+        raise ValueError("Configuração de governança pediátrica inválida.")
+
+    registered_sources = {
+        row.get("source_id") for row in source_registry.get("sources", [])
+    }
+    verified_presentations = [
+        {
+            "presentation_id": row["presentation_id"],
+            "generic_name": row["generic_name"],
+            "strength": row["strength"],
+            "source_ids": row["source_ids"],
+            "last_verified": row["last_verified"],
+        }
+        for row in presentations
+        if row.get("presentation_id") == ONDANSETRON_PRESENTATION_ID
+        and row.get("brazil_status") == "COMMERCIAL_PRESENCE_CROSSCHECKED"
+        and row.get("last_verified") == effective_date.group(1)
+        and row.get("source_ids")
+        and set(row["source_ids"]).issubset(registered_sources)
+    ]
+    if not verified_presentations:
+        raise ValueError("Nenhuma apresentação pediátrica brasileira foi verificada.")
+    return {
+        "configuration_id": "pediatric-pharmacotherapy-governance",
+        "governance_version": version.group(1),
+        "effective_date": effective_date.group(1),
+        "source_registry_version": source_registry.get("registry_version"),
+        "presentation_registry_version": 61,
+        "presentations": verified_presentations,
+        "complete_regimen_count": 0,
+        "triple_audit_passed": False,
+    }
+
+
+def ondansetron_volume_ml(dose_mg: float) -> float:
+    if (
+        isinstance(dose_mg, bool)
+        or not isinstance(dose_mg, (int, float))
+        or not math.isfinite(dose_mg)
+        or dose_mg <= 0
+    ):
+        raise ValueError("dose_mg deve ser positivo e finito.")
+    strength = _load_ondansetron_presentation()["strength"]
+    return float(dose_mg) / float(strength["value"])
 
 
 def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> OndansetronDose:
@@ -395,10 +476,10 @@ def _validate_weight(weight_kg: float) -> float:
         isinstance(weight_kg, bool)
         or not isinstance(weight_kg, (int, float))
         or not math.isfinite(weight_kg)
-        or weight_kg <= 0
-        or weight_kg >= 200
+        or weight_kg < 0.1
+        or weight_kg > 90
     ):
-        raise ValueError("weight_kg deve ser finito, maior que zero e menor que 200.")
+        raise ValueError("weight_kg deve ser finito e estar entre 0,1 e 90 kg.")
     return float(weight_kg)
 
 
@@ -417,7 +498,7 @@ def _diagnosis_state(diagnosis: str) -> tuple[str | None, str | None]:
 def generate_pediatric_prescription(
     diagnosis: str,
     weight_kg: float,
-    age: str,
+    age: str | AgeInput,
     visit_date: str | None = None,
     *,
     allergies: list[str] | None = None,
@@ -427,7 +508,7 @@ def generate_pediatric_prescription(
     hepatic_function: str | None = None,
 ) -> PrescriptionDecision:
     diagnosis = _clean_text(diagnosis)
-    age_text = _clean_text(age)
+    age_text = age if isinstance(age, AgeInput) else _clean_text(age)
     if not diagnosis:
         raise ValueError("diagnosis é obrigatório.")
     if not age_text:

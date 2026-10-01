@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from nexo_clinical.input_models import PediatricPrescriptionInput
+from nexo_clinical.input_models import AgeInput, PediatricPrescriptionInput
 from nexo_clinical.pediatric_pharmacotherapy import (
     OndansetronDose,
     RegimenEligibility,
@@ -10,6 +10,8 @@ from nexo_clinical.pediatric_pharmacotherapy import (
     diagnosis_linked_adjuncts,
     evaluate_contraindications,
     generate_pediatric_prescription,
+    ondansetron_volume_ml,
+    pediatric_governance_metadata,
     parse_pediatric_age,
 )
 
@@ -57,6 +59,16 @@ def test_parse_pediatric_age_rejects_invalid_or_non_pediatric_values(value):
 )
 def test_negated_diagnoses_never_select_treatment(diagnosis):
     decision = generate_pediatric_prescription(diagnosis, 16, "4 anos")
+    assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
+    assert decision.prescription is None
+
+
+@pytest.mark.parametrize(
+    "diagnosis",
+    ["não faringite", "nega otite", "asfixia", "intoxicação por paracetamol", "choque séptico"],
+)
+def test_negated_or_unknown_diagnoses_do_not_select_treatment(diagnosis):
+    decision = generate_pediatric_prescription(diagnosis, 16, AgeInput(years=4))
     assert decision.resolution_state is ResolutionState.NOT_INDICATED_FOR_DIAGNOSIS
     assert decision.prescription is None
 
@@ -194,6 +206,23 @@ def test_ondansetron_uses_verified_presentation_and_reverse_checks(
     assert result.reconstructed_mg == result.dose_mg
 
 
+def test_governance_metadata_and_volume_conversion_use_verified_v61_presentation():
+    metadata = pediatric_governance_metadata()
+    presentation = metadata["presentations"][0]
+    assert metadata["governance_version"] == "61.0-diagnosis-linked-complete-regimens"
+    assert metadata["effective_date"] == "2026-08-24"
+    assert metadata["triple_audit_passed"] is False
+    assert presentation["strength"] == {"value": 8, "unit": "mg/mL"}
+    assert presentation["source_ids"] == ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
+    assert ondansetron_volume_ml(2.4) == pytest.approx(0.3)
+
+
+@pytest.mark.parametrize("dose", [0, -1, float("inf"), float("nan")])
+def test_ondansetron_volume_rejects_invalid_doses(dose):
+    with pytest.raises(ValueError):
+        ondansetron_volume_ml(dose)
+
+
 def test_ondansetron_age_and_weight_bands_are_enforced():
     with pytest.raises(ValueError, match="Idade abaixo"):
         calculate_ondansetron_dose(14, 5)
@@ -231,7 +260,7 @@ def _valid_payload(**overrides):
     return {
         "diagnosis": "Faringite Aguda Viral",
         "weight_kg": 14,
-        "age": "2 anos e 3 meses",
+        "age": {"years": 2, "months": 3},
         "visit_date": "28/09/2026",
         **overrides,
     }
@@ -239,13 +268,26 @@ def _valid_payload(**overrides):
 
 def test_input_model_normalizes_text_and_parses_structured_age():
     payload = PediatricPrescriptionInput.model_validate(
-        _valid_payload(diagnosis="  Faringite\nAguda Viral  ", age="2 ANOS E 3 MESES")
+        _valid_payload(diagnosis="  Faringite Aguda Viral  ")
     )
     assert payload.diagnosis == "faringite aguda viral"
     assert parse_pediatric_age(payload.age).months_total == 27
 
 
-@pytest.mark.parametrize("value", ["invalid age", "2 anos e 12 meses", "200 anos", "   "])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "invalid age",
+        "2 anos e 12 meses",
+        "200 anos",
+        "   ",
+        {"years": -1},
+        {"years": 19},
+        {"years": 18, "months": 1},
+        {"years": 1, "months": 12},
+        {"years": 1, "days": 31},
+    ],
+)
 def test_input_model_rejects_invalid_age(value):
     with pytest.raises(ValidationError):
         PediatricPrescriptionInput.model_validate(_valid_payload(age=value))
@@ -257,7 +299,7 @@ def test_input_model_rejects_invalid_dates(value):
         PediatricPrescriptionInput.model_validate(_valid_payload(visit_date=value))
 
 
-@pytest.mark.parametrize("weight", [float("nan"), float("inf"), -5, 0, 200])
+@pytest.mark.parametrize("weight", [float("nan"), float("inf"), -5, 0, 0.0001, 90.01, 200])
 def test_input_model_rejects_nonfinite_or_out_of_range_weight(weight):
     with pytest.raises(ValidationError):
         PediatricPrescriptionInput.model_validate(_valid_payload(weight_kg=weight))
@@ -271,3 +313,16 @@ def test_input_model_rejects_whitespace_only_diagnosis():
 def test_input_model_rejects_control_characters():
     with pytest.raises(ValidationError):
         PediatricPrescriptionInput.model_validate(_valid_payload(diagnosis="Faringite\x00"))
+
+
+def test_newborn_age_and_weight_are_accepted_without_authorizing_a_regimen():
+    payload = PediatricPrescriptionInput.model_validate(
+        _valid_payload(weight_kg=0.8, age={"years": 0, "months": 0, "days": 2})
+    )
+    decision = generate_pediatric_prescription(
+        payload.diagnosis, payload.weight_kg, payload.age,
+        allergies=[], comorbidities=[], current_medications=[],
+        renal_function="normal", hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert decision.prescription is None

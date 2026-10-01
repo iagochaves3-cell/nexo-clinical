@@ -8,7 +8,7 @@ import json
 PEDIATRIC_PAYLOAD = {
     "diagnosis": "Faringite Aguda Viral",
     "weight_kg": 14,
-    "age": "2 anos e 3 meses",
+    "age": {"years": 2, "months": 3},
     "visit_date": "28/09/2026",
 }
 

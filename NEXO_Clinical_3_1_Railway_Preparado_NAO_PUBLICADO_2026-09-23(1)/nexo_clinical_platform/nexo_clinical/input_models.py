@@ -7,15 +7,6 @@ import unicodedata
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .pediatric_pharmacotherapy import MAX_PEDIATRIC_AGE_MONTHS, parse_pediatric_age
-
-
-_AGE_PATTERN = (
-    r"^(?:\d{1,3}\s*anos?(?:\s+e\s+\d{1,2}\s*m[eê]s(?:es)?)?"
-    r"|\d{1,3}\s*m[eê]s(?:es)?)$"
-)
-
-
 class StrictInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
@@ -49,11 +40,45 @@ class SafetyInput(StrictInput):
     citations: list[str | dict[str, Any]] = Field(default_factory=list)
 
 
+class AgeInput(StrictInput):
+    years: int = Field(ge=0, le=18)
+    months: int = Field(default=0, ge=0, le=11)
+    days: int = Field(default=0, ge=0, le=30)
+
+    @model_validator(mode="after")
+    def validate_pediatric_age(self) -> AgeInput:
+        if self.years == 18 and (self.months or self.days):
+            raise ValueError("A idade não pode exceder 18 anos.")
+        return self
+
+    @property
+    def months_total(self) -> int:
+        return self.years * 12 + self.months
+
+    @property
+    def age_category(self) -> str:
+        if self.months_total < 24:
+            return "lactente"
+        if self.months_total < 144:
+            return "criança"
+        return "adolescente"
+
+    def display(self) -> str:
+        parts = []
+        if self.years:
+            parts.append(f"{self.years} {'ano' if self.years == 1 else 'anos'}")
+        if self.months:
+            parts.append(f"{self.months} {'mês' if self.months == 1 else 'meses'}")
+        if self.days:
+            parts.append(f"{self.days} {'dia' if self.days == 1 else 'dias'}")
+        return " e ".join(parts) if parts else "recém-nascido"
+
+
 class PediatricPrescriptionInput(StrictInput):
     diagnosis: str = Field(min_length=1, max_length=200)
-    weight_kg: float = Field(gt=0, lt=200, allow_inf_nan=False)
-    age: str = Field(min_length=1, max_length=50, pattern=_AGE_PATTERN)
-    visit_date: str | None = Field(default=None, min_length=1, max_length=10)
+    weight_kg: float = Field(ge=0.1, le=90, allow_inf_nan=False)
+    age: AgeInput
+    visit_date: str | None = Field(default=None, min_length=1, max_length=20)
     allergies: list[str] | None = None
     comorbidities: list[str] | None = None
     current_medications: list[str] | None = None
@@ -98,16 +123,11 @@ class PediatricPrescriptionInput(StrictInput):
             return None
         value = " ".join(value.split())
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-            date.fromisoformat(value)
+            parsed = date.fromisoformat(value)
         elif re.fullmatch(r"\d{2}/\d{2}/\d{4}", value):
-            datetime.strptime(value, "%d/%m/%Y")
+            parsed = datetime.strptime(value, "%d/%m/%Y").date()
         else:
             raise ValueError("Use YYYY-MM-DD ou DD/MM/YYYY.")
+        if parsed < date(1900, 1, 1) or parsed > date.today():
+            raise ValueError("A data deve estar entre 01/01/1900 e hoje.")
         return value
-
-    @model_validator(mode="after")
-    def validate_pediatric_age(self) -> PediatricPrescriptionInput:
-        parsed_age = parse_pediatric_age(self.age)
-        if parsed_age.months_total > MAX_PEDIATRIC_AGE_MONTHS:
-            raise ValueError("A idade deve estar entre 0 e 18 anos.")
-        return self

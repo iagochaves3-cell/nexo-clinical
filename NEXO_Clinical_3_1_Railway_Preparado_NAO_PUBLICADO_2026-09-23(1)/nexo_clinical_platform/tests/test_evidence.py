@@ -57,7 +57,7 @@ def test_new_routes_are_protected(client, path, payload):
 
 
 def test_pediatric_prescription_route_requires_primary_token(client):
-    payload = {"diagnosis": "Faringite Aguda Viral", "weight_kg": 14, "age": "2 anos", "visit_date": "28/09/2026"}
+    payload = {"diagnosis": "Faringite Aguda Viral", "weight_kg": 14, "age": {"years": 2}, "visit_date": "28/09/2026"}
     assert client.post("/v1/pediatric/prescription", json=payload).status_code == 401
     assert post(client, "/v1/pediatric/prescription", payload, SECONDARY).status_code == 401
     r = post(client, "/v1/pediatric/prescription", payload)

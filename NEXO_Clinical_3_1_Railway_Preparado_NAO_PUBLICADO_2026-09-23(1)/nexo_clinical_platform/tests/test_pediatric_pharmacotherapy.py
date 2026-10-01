@@ -9,6 +9,7 @@ from nexo_clinical.pediatric_pharmacotherapy import (
     ResolutionState,
     diagnosis_linked_adjuncts,
     generate_pediatric_prescription,
+    ondansetron_volume_ml,
     pediatric_governance_metadata,
 )
 
@@ -56,7 +57,13 @@ def test_presentation_registry_has_verified_ondansetron_strength_and_source():
     )
     assert ondansetron["strength"] == {"value": 8, "unit": "mg/mL"}
     assert ondansetron["source_ids"] == ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
-    assert 2.4 / ondansetron["strength"]["value"] == pytest.approx(0.3)
+    assert ondansetron_volume_ml(2.4) == pytest.approx(0.3)
+
+
+@pytest.mark.parametrize("dose", [0, -1, float("inf"), float("nan")])
+def test_ondansetron_volume_rejects_invalid_doses(dose):
+    with pytest.raises(ValueError):
+        ondansetron_volume_ml(dose)
 
 
 @pytest.mark.parametrize("diagnosis", [

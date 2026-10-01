@@ -142,6 +142,21 @@ def pediatric_governance_metadata() -> dict:
     }
 
 
+def ondansetron_volume_ml(dose_mg: float) -> float:
+    if isinstance(dose_mg, bool) or not isinstance(dose_mg, (int, float)) or not math.isfinite(dose_mg) or dose_mg <= 0:
+        raise ValueError("dose_mg deve ser positivo e finito.")
+    presentation = next(
+        (
+            item for item in pediatric_governance_metadata()["presentations"]
+            if item["presentation_id"] == "ondansetron-enavo-drops-8mg-ml-5ml-br"
+        ),
+        None,
+    )
+    if presentation is None or presentation["strength"]["unit"] != "mg/mL":
+        raise ValueError("Apresentação brasileira validada de ondansetrona indisponível.")
+    return float(dose_mg) / presentation["strength"]["value"]
+
+
 _DIAGNOSIS_PATTERNS = {
     "faringite": re.compile(r"\bfaringite\b"),
     "resfriado": re.compile(r"\bresfriado\b"),

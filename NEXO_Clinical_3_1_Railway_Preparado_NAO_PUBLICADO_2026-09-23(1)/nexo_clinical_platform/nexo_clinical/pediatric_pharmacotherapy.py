@@ -151,7 +151,7 @@ _DIAGNOSIS_PATTERNS = {
     "amigdalite": re.compile(r"\bamigdalite\b"),
     "sinusite": re.compile(r"\bsinusite\b"),
 }
-_NEGATION = re.compile(r"\b(?:sem|nega|negando|ausencia de|ausente|descarta|descartado)\b")
+_NEGATION = re.compile(r"\b(?:sem|nao|nega|negando|ausencia de|ausente|descarta|descartado)\b")
 
 
 def _normalize_diagnosis(value: str) -> tuple[str, str]:

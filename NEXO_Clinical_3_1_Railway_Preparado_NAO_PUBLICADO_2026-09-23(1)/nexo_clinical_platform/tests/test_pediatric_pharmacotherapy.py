@@ -62,6 +62,7 @@ def test_presentation_registry_has_verified_ondansetron_strength_and_source():
 @pytest.mark.parametrize("diagnosis", [
     "Sem faringite",
     "Sem otite",
+    "Não faringite",
     "Asfixia",
     "Intoxicação por paracetamol",
     "Hipoglicemia",

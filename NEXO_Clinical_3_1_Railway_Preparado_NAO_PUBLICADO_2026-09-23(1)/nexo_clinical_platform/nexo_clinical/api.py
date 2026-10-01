@@ -53,9 +53,30 @@ def create_app():
     def imaging(payload:dict): return assess_image_input(payload)
     @app.post("/v1/pediatric/prescription")
     def pediatric_prescription(payload:PediatricPrescriptionInput):
+        decision = generate_pediatric_prescription(
+            payload.diagnosis,
+            payload.weight_kg,
+            payload.age,
+            payload.visit_date,
+            allergies=payload.allergies,
+            comorbidities=payload.comorbidities,
+            current_medications=payload.current_medications,
+            renal_function=payload.renal_function,
+            hepatic_function=payload.hepatic_function,
+        )
         return {
-            "prescription": generate_pediatric_prescription(
-                payload.diagnosis, payload.weight_kg, payload.age, payload.visit_date
+            "prescription": decision.prescription,
+            "resolution_state": decision.resolution_state.value,
+            "reason": decision.reason,
+            "required_information": list(decision.required_information),
+            "diagnosis_id": decision.diagnosis_id,
+            "age": (
+                {
+                    "months_total": decision.age.months_total,
+                    "age_category": decision.age.age_category,
+                }
+                if decision.age
+                else None
             ),
             "clinical_validated": False,
             "prescribing_authorization": False,

@@ -222,9 +222,11 @@ def test_under_two_ondansetron_candidate_is_not_auto_prescribed():
         current_medications=[],
         hepatic_function="normal",
     )
-    assert calculate_ondansetron_dose(14, 18).dose_mg == 2
-    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_AGE
     assert decision.prescription is None
+    with pytest.raises(ValueError, match="Idade abaixo"):
+        calculate_ondansetron_dose(14, 18)
+    assert calculate_ondansetron_dose(14, 24).dose_mg == 2
 
 
 def _valid_payload(**overrides):

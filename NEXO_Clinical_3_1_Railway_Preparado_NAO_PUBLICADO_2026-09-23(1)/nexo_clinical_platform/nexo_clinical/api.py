@@ -53,7 +53,14 @@ def create_app():
     def imaging(payload:dict): return assess_image_input(payload)
     @app.post("/v1/pediatric/prescription")
     def pediatric_prescription(payload:PediatricPrescriptionInput):
-        return {"prescription":generate_pediatric_prescription(payload.diagnosis,payload.weight_kg,payload.age,payload.visit_date)}
+        return {
+            "prescription": generate_pediatric_prescription(
+                payload.diagnosis, payload.weight_kg, payload.age, payload.visit_date
+            ),
+            "clinical_validated": False,
+            "prescribing_authorization": False,
+            "requires_human_review": True,
+        }
     from .evidence_api import register_evidence_routes
     register_evidence_routes(app)
     return app

@@ -4,7 +4,7 @@ from . import __version__
 from .models import ClinicalQuery
 from .input_models import ECGInput, LaboratoryInput, PediatricPrescriptionInput, SafetyInput
 from .orchestrator import ClinicalOrchestrator
-from .pediatric_pharmacotherapy import generate_pediatric_prescription
+from .pediatric_pharmacotherapy import generate_pediatric_prescription, pediatric_governance_metadata
 from .registry import SourceRegistry
 from .multimodal.ecg import assess_ecg_input,qtc_bazett,qtc_fridericia
 from .multimodal.laboratory import analyze_laboratory
@@ -53,10 +53,15 @@ def create_app():
     def imaging(payload:dict): return assess_image_input(payload)
     @app.post("/v1/pediatric/prescription")
     def pediatric_prescription(payload:PediatricPrescriptionInput):
-        return {
-            "prescription": generate_pediatric_prescription(
+        try:
+            prescription = generate_pediatric_prescription(
                 payload.diagnosis, payload.weight_kg, payload.age, payload.visit_date
-            ),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        return {
+            "prescription": prescription,
+            "governance": pediatric_governance_metadata(),
             "clinical_validated": False,
             "prescribing_authorization": False,
             "requires_human_review": True,

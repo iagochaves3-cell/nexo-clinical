@@ -29,6 +29,9 @@ packages = ["nexo_clinical", "deploy"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "nexo_clinical/data/source_registry.json" = "nexo_clinical/data/source_registry.json"
+"nexo_clinical/data/pediatric-pharmacotherapy-governance.yaml" = "nexo_clinical/data/pediatric-pharmacotherapy-governance.yaml"
+"nexo_clinical/data/presentations_brazil_v61.json" = "nexo_clinical/data/presentations_brazil_v61.json"
+"nexo_clinical/data/source-registry-addendum-v61.json" = "nexo_clinical/data/source-registry-addendum-v61.json"
 
 [tool.pytest.ini_options]
 addopts = "-q"

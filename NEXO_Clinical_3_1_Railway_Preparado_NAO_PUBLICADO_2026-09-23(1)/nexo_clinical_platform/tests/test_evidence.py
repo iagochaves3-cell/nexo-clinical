@@ -57,12 +57,16 @@ def test_new_routes_are_protected(client, path, payload):
 
 
 def test_pediatric_prescription_route_requires_primary_token(client):
-    payload = {"diagnosis": "Faringite Aguda Viral", "weight_kg": 14, "age": "2 anos", "visit_date": "28/09/2026"}
+    payload = {"diagnosis": "Faringite Aguda Viral", "weight_kg": 14, "age": {"years": 2}, "visit_date": "28/09/2026"}
     assert client.post("/v1/pediatric/prescription", json=payload).status_code == 401
     assert post(client, "/v1/pediatric/prescription", payload, SECONDARY).status_code == 401
     r = post(client, "/v1/pediatric/prescription", payload)
     assert r.status_code == 200
     assert "DIAGNÓSTICO\nFARINGITE AGUDA VIRAL" in r.json()["prescription"]
+    assert "NÃO LIBERADA" in r.json()["prescription"]
+    assert r.json()["clinical_validated"] is False
+    assert r.json()["prescribing_authorization"] is False
+    assert r.json()["requires_human_review"] is True
 
 
 @pytest.mark.parametrize("query", ["nome: Fulano", "CPF: 12345678901", "test@example.com", "http://localhost", "amoxi 12345678", "amoxi OR SRC:PPR", "peso 16"])

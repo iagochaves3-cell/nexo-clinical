@@ -160,6 +160,20 @@ def test_long_qt_comorbidity_blocks_ondansetron_candidate():
     assert "QT" in decision.reason
 
 
+def test_qt_risk_concomitant_medication_blocks_ondansetron_candidate():
+    decision = generate_pediatric_prescription(
+        "Gastroenterite Viral Aguda",
+        16,
+        "4 anos",
+        allergies=[],
+        comorbidities=[],
+        current_medications=["amiodarona 200 mg"],
+        hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_CLINICAL
+    assert "QT" in decision.reason
+
+
 @pytest.mark.parametrize(
     "weight,dose,volume,drops",
     [(14, 2.0, 0.25, 5), (16, 4.0, 0.5, 10), (35, 8.0, 1.0, 20)],

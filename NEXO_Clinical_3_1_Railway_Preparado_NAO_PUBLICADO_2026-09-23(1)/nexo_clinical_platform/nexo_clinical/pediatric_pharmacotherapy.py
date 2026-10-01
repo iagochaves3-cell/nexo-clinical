@@ -140,6 +140,21 @@ _RENAL_ASSESSMENT_MEDICATIONS = {
     "amikacin",
     "tobramycin",
 }
+_ONDANSETRON_QT_RISK_MEDICATIONS = {
+    "amiodarone",
+    "amiodarona",
+    "sotalol",
+    "quinidine",
+    "quinidina",
+    "clarithromycin",
+    "claritromicina",
+    "azithromycin",
+    "azitromicina",
+    "citalopram",
+    "escitalopram",
+    "domperidone",
+    "domperidona",
+}
 _MEDICATION_ALIASES = {
     "amoxicilina": "amoxicillin",
     "ondansetrona": "ondansetron",
@@ -352,6 +367,15 @@ def evaluate_contraindications(
                 )
             if current_medications is None:
                 missing.add("current_medications")
+            elif any(
+                f" {risk_medication} " in f" {_fold(_clean_text(item))} "
+                for item in current_medications
+                for risk_medication in _ONDANSETRON_QT_RISK_MEDICATIONS
+            ):
+                return PrescriptionDecision(
+                    ResolutionState.CONTRAINDICATED_CLINICAL,
+                    "medicamento em uso com risco de prolongamento do intervalo QT",
+                )
             if hepatic_function in (None, "unknown"):
                 missing.add("hepatic_function")
             elif hepatic_function == "impaired":

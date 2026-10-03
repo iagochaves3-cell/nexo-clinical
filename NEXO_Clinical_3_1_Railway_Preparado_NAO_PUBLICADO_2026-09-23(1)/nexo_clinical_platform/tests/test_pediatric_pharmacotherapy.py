@@ -232,30 +232,68 @@ def test_ondansetron_age_and_weight_bands_are_enforced():
         calculate_ondansetron_dose(15.05, 48)
 
 
-def test_ondansetron_candidate_under_six_months_is_rejected():
+@pytest.mark.parametrize("age_months", [5, 145])
+def test_ondansetron_outside_selected_evidence_age_is_not_absolute_contraindication(age_months):
     decision = generate_pediatric_prescription(
-        "Gastroenterite Viral Aguda", 8, "5 meses",
+        "Gastroenterite Viral Aguda", 8, f"{age_months} meses",
         allergies=[], comorbidities=[], current_medications=[], hepatic_function="normal",
     )
-    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_AGE
+    assert decision.resolution_state is ResolutionState.OUTSIDE_EVIDENCE_AGE
+    assert "não equivale a contraindicação absoluta" in decision.reason
     assert decision.prescription is None
+    with pytest.raises(ValueError, match="população coberta"):
+        calculate_ondansetron_dose(8, age_months)
 
 
-def test_under_two_ondansetron_candidate_is_not_auto_prescribed():
+@pytest.mark.parametrize("age_months", [6, 18, 23, 24, 144])
+def test_gastroenteritis_evidence_and_enavo_label_age_are_separate(age_months):
     decision = generate_pediatric_prescription(
         "Gastroenterite Viral Aguda",
         14,
-        "18 meses",
+        f"{age_months} meses",
         allergies=[],
         comorbidities=[],
         current_medications=[],
         hepatic_function="normal",
     )
-    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_AGE
+    assert decision.resolution_state is ResolutionState.REQUIRES_CRITICAL_INPUT
     assert decision.prescription is None
-    with pytest.raises(ValueError, match="Idade abaixo"):
-        calculate_ondansetron_dose(14, 18)
-    assert calculate_ondansetron_dose(14, 24).dose_mg == 2
+    assert "off-label" in decision.reason
+    result = calculate_ondansetron_dose(14, age_months)
+    assert result.dose_mg == 2
+    assert result.volume_ml == pytest.approx(0.25)
+    assert result.drops == 5
+    assert result.reconstructed_mg == pytest.approx(result.dose_mg)
+    assert result.off_label is True  # Gastroenteritis is off-label even at 24 months.
+    assert "gastroenterite" in result.off_label_reasons[0]
+    if age_months < 24:
+        assert len(result.off_label_reasons) == 2
+        assert "24 meses" in result.off_label_reasons[1]
+        assert "24 meses" in decision.reason
+    else:
+        assert len(result.off_label_reasons) == 1
+        assert "24 meses" not in decision.reason
+    assert result.age_source_ids[:2] == (
+        "SBP_DIARREIA_AGUDA_INFECCIOSA_2023", "MS_MANEJO_DIARREIA_AGUDA_2023"
+    )
+    assert result.label_source_id == "ENAVO_GOTAS_LABEL_2025"
+
+
+@pytest.mark.parametrize("age", [True, 23.5, float("nan"), "24"])
+def test_ondansetron_calculation_requires_integer_months(age):
+    with pytest.raises(ValueError, match="meses inteiros"):
+        calculate_ondansetron_dose(14, age)
+
+
+@pytest.mark.parametrize("age_months", [18, 23, 24])
+def test_restored_age_range_does_not_bypass_qt_review(age_months):
+    decision = generate_pediatric_prescription(
+        "Gastroenterite", 14, f"{age_months} meses",
+        allergies=[], comorbidities=["QT longo"], current_medications=[],
+        hepatic_function="normal",
+    )
+    assert decision.resolution_state is ResolutionState.CONTRAINDICATED_CLINICAL
+    assert decision.prescription is None
 
 
 def _valid_payload(**overrides):

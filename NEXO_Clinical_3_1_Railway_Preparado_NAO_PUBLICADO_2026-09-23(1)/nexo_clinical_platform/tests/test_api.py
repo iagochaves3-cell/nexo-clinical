@@ -1,4 +1,5 @@
 from nexo_clinical import __version__
+import pytest
 import os
 os.environ["NEXO_CREATE_APP"]="1"
 from fastapi.testclient import TestClient
@@ -27,6 +28,32 @@ def test_pediatric_prescription_route():
     assert result["prescribing_authorization"] is False
     assert result["requires_human_review"] is True
     assert result["age"] == {"months_total": 27, "age_category": "criança"}
+
+@pytest.mark.parametrize("age_months,expected", [
+    (5, "OUTSIDE_EVIDENCE_AGE"),
+    (18, "REQUIRES_CRITICAL_INPUT"),
+    (23, "REQUIRES_CRITICAL_INPUT"),
+    (24, "REQUIRES_CRITICAL_INPUT"),
+])
+def test_ondansetron_age_policy_is_visible_without_prescribing_authorization(age_months, expected):
+    c = TestClient(create_app())
+    response = c.post('/v1/pediatric/prescription', json={
+        **PEDIATRIC_PAYLOAD, "diagnosis": "Gastroenterite Viral Aguda",
+        "age": {"years": age_months // 12, "months": age_months % 12},
+        "allergies": [], "comorbidities": [],
+        "current_medications": [], "hepatic_function": "normal",
+    })
+    assert response.status_code == 200
+    result = response.json()
+    assert result["resolution_state"] == expected
+    assert result["prescription"] is None
+    assert result["prescribing_authorization"] is False
+    assert result["clinical_validated"] is False
+    assert result["requires_human_review"] is True
+    policy = result["governance"]["ondansetron_age_policy"]
+    assert policy["minimum_evidence_age_months"] == 6
+    assert policy["enavo_drops_minimum_label_age_months"] == 24
+    assert policy["gastroenteritis_off_label_at_all_ages"] is True
 
 def test_pediatric_validation_returns_422_for_invalid_weights():
     c=TestClient(create_app())

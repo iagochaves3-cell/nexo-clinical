@@ -37,7 +37,8 @@
     "registration_ms": "1023514490017",
     "brazil_status": "COMMERCIAL_PRESENCE_CROSSCHECKED",
     "source_ids": [
-      "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"
+      "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK",
+      "ENAVO_GOTAS_LABEL_2025"
     ],
     "last_verified": "2026-10-03",
     "safety_note": "Presentation data do not authorize every indication."

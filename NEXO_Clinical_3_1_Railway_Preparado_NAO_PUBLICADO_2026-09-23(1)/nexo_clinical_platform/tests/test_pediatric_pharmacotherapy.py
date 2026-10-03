@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -204,6 +207,28 @@ def test_ondansetron_uses_verified_presentation_and_reverse_checks(
     assert result.volume_ml == volume
     assert result.drops == drops
     assert result.reconstructed_mg == result.dose_mg
+
+
+def test_ondansetron_presentation_requires_its_own_label_source(monkeypatch):
+    original_read_text = Path.read_text
+
+    def patched_read_text(path, *args, **kwargs):
+        text = original_read_text(path, *args, **kwargs)
+        if path.name == "presentations_brazil_v61.json":
+            rows = json.loads(text)
+            selected = next(
+                row
+                for row in rows
+                if row.get("presentation_id")
+                == "ondansetron-enavo-drops-8mg-ml-5ml-br"
+            )
+            selected["source_ids"] = ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
+            return json.dumps(rows)
+        return text
+
+    monkeypatch.setattr(Path, "read_text", patched_read_text)
+    with pytest.raises(ValueError, match="Apresentação ou fonte da ondansetrona não verificada"):
+        calculate_ondansetron_dose(14, 48)
 
 
 def test_governance_metadata_and_volume_conversion_use_verified_v61_presentation():

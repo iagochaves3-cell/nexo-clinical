@@ -269,6 +269,7 @@ def _load_ondansetron_presentation() -> dict[str, object]:
         presentation is None
         or presentation.get("brazil_status") != "COMMERCIAL_PRESENCE_CROSSCHECKED"
         or PRESENTATION_SOURCE_ID not in presentation.get("source_ids", [])
+        or ONDANSETRON_LABEL_SOURCE_ID not in presentation.get("source_ids", [])
         or PRESENTATION_SOURCE_ID not in source_ids
         or ONDANSETRON_SOURCE_ID not in source_ids
         or ONDANSETRON_LABEL_SOURCE_ID not in source_ids
@@ -401,7 +402,7 @@ def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> Ondansetron
 
     if 8 <= weight_kg <= 15:
         intended_dose_mg = 2.0
-    elif 15.1 <= weight_kg <= 30:
+    elif 15 < weight_kg <= 30:
         intended_dose_mg = 4.0
     elif weight_kg > 30:
         intended_dose_mg = 8.0

@@ -28,7 +28,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform/pyproject.toml
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+        run: python -m pip install --upgrade pip && python -m pip install 'hatchling>=1.25' -e '.[dev]'
       - name: Run full test suite
         run: python -m pytest tests
       - name: Build wheel

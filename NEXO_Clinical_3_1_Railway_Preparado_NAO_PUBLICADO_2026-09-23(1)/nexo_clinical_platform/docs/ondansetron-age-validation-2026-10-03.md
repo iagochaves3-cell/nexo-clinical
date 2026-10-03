@@ -66,7 +66,7 @@ Suíte completa do delta clínico inicial: python -m pytest tests — 271 passed
 Build do delta clínico inicial: python -m build --wheel --no-isolation — wheel 3.1.0 construído.
 git diff --check do delta clínico inicial — passou.
 
-Follow-up de auditoria em 03/10/2026: versionamento de governança/source registry, vínculo explícito da bula do fabricante à apresentação Enavo 5 mL, regeneração do manifesto SHA-256 e forward-port da correção de continuidade de peso >15 kg já revisada no PR #12. As contagens acima pertencem ao delta clínico inicial e não são reapresentadas como execução posterior a este follow-up; a validação do follow-up deve ser registrada separadamente antes do fechamento definitivo.
+Follow-up de auditoria em 03/10/2026: versionamento de governança/source registry, vínculo explícito da bula do fabricante à apresentação Enavo 5 mL, validação negativa para impedir que a presença da bula apenas no registry global seja aceita como proveniência da apresentação, regeneração do manifesto SHA-256 e forward-port da correção de continuidade de peso >15 kg já revisada no PR #12. As contagens acima pertencem ao delta clínico inicial e não são reapresentadas como execução posterior a este follow-up; a validação do follow-up deve ser registrada separadamente antes do fechamento definitivo.
 ```
 
 O aviso é de depreciação Starlette/httpx no ambiente instalado; não houve falha funcional. Os testes são locais, não checks de GitHub Actions.

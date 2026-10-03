@@ -1,0 +1,35 @@
+name: NEXO Python tests
+
+on:
+  pull_request:
+    paths:
+      - 'NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform/**'
+      - '.github/workflows/nexo-python-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform/**'
+      - '.github/workflows/nexo-python-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: NEXO_Clinical_3_1_Railway_Preparado_NAO_PUBLICADO_2026-09-23(1)/nexo_clinical_platform/pyproject.toml
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Run full test suite
+        run: python -m pytest tests
+      - name: Build wheel
+        run: python -m build --wheel --no-isolation

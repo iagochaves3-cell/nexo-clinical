@@ -55,8 +55,8 @@
   "tests/test_deployment_metadata.py": "1f6d2b2c4a56180ba3d1392faeea089e6fcd618b150f609172f751cf562c6478",
   "tests/test_knowledge.py": "0d6d22fbaaca154db7ca157821fe265a5684caa0dd1412b1841e3bc8b06b43f1",
   "tests/test_multimodal.py": "6ece3e99b25148335ce1625629100191db51cde6dc5d5806f8fb84b102095c6d",
-  "tests/test_pediatric_pharmacotherapy.py": "1b0006f6fb825167dee477ce09ed9d04efe64a0fc500db3cd4ddf26e39c32769",
+  "tests/test_pediatric_pharmacotherapy.py": "e4021b17825246f61b77865753e6323690a2018672ac7ba7d15e378a28b83c0e",
   "tests/test_registry.py": "abaf7e0dd271978e51b87936725ac577ebb171f530b23bde73e315add50d4edd",
   "tests/test_safety.py": "787da558bf4d03fb74a3de86149fdadb12eb9dd6db25f913733aba8c5c5cf7cf",
-  "docs/ondansetron-age-validation-2026-10-03.md": "1b524ec2bc2322c2191db1c4f8ed082be340bb9d16fe8c45669ccc7c2fcf3417"
+  "docs/ondansetron-age-validation-2026-10-03.md": "b32185bc18d2983c634c58a22e1abd8660d0f6fc10922795d73832663339bd25"
 }

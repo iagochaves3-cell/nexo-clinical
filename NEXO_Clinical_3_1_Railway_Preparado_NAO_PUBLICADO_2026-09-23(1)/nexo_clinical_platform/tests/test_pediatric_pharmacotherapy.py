@@ -209,11 +209,14 @@ def test_ondansetron_uses_verified_presentation_and_reverse_checks(
 def test_governance_metadata_and_volume_conversion_use_verified_v61_presentation():
     metadata = pediatric_governance_metadata()
     presentation = metadata["presentations"][0]
-    assert metadata["governance_version"] == "61.0-diagnosis-linked-complete-regimens"
-    assert metadata["effective_date"] == "2026-08-24"
+    assert metadata["governance_version"] == "61.1-ondansetron-age-evidence-2026-10-03"
+    assert metadata["effective_date"] == "2026-10-03"
     assert metadata["triple_audit_passed"] is False
     assert presentation["strength"] == {"value": 8, "unit": "mg/mL"}
-    assert presentation["source_ids"] == ["ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"]
+    assert presentation["source_ids"] == [
+        "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK",
+        "ENAVO_GOTAS_LABEL_2025",
+    ]
     assert ondansetron_volume_ml(2.4) == pytest.approx(0.3)
 
 
@@ -228,8 +231,7 @@ def test_ondansetron_age_and_weight_bands_are_enforced():
         calculate_ondansetron_dose(14, 5)
     with pytest.raises(ValueError, match="Peso fora"):
         calculate_ondansetron_dose(7.9, 48)
-    with pytest.raises(ValueError, match="faixas de dose"):
-        calculate_ondansetron_dose(15.05, 48)
+    assert calculate_ondansetron_dose(15.05, 48).dose_mg == 4
 
 
 @pytest.mark.parametrize("age_months", [5, 145])

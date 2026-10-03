@@ -17,6 +17,7 @@ from .input_models import AgeInput
 class ResolutionState(StrEnum):
     READY = "READY"
     CONTRAINDICATED_AGE = "CONTRAINDICATED_AGE"
+    OUTSIDE_EVIDENCE_AGE = "OUTSIDE_EVIDENCE_AGE"
     CONTRAINDICATED_WEIGHT = "CONTRAINDICATED_WEIGHT"
     CONTRAINDICATED_CLINICAL = "CONTRAINDICATED_CLINICAL"
     NOT_INDICATED_FOR_DIAGNOSIS = "NOT_INDICATED_FOR_DIAGNOSIS"
@@ -93,14 +94,33 @@ class OndansetronDose:
     concentration_mg_per_ml: float
     reconstructed_mg: float
     source_ids: tuple[str, ...]
+    off_label: bool
+    off_label_reasons: tuple[str, ...]
+    age_source_ids: tuple[str, ...]
+    label_source_id: str
 
 
 MAX_PEDIATRIC_AGE_MONTHS = 18 * 12
-ONDANSETRON_MIN_AGE_MONTHS = 24
+# This is the oral gastroenteritis evidence range, not a drug-wide contraindication.
+ONDANSETRON_MIN_AGE_MONTHS = 6
 ONDANSETRON_MAX_AGE_MONTHS = 12 * 12
+ONDANSETRON_ENAVO_LABEL_MIN_AGE_MONTHS = 24
 ONDANSETRON_PRESENTATION_ID = "ondansetron-enavo-drops-8mg-ml-5ml-br"
 ONDANSETRON_SOURCE_ID = "CPS_ORAL_ONDANSETRON_GASTROENTERITIS"
 PRESENTATION_SOURCE_ID = "ENAVO_8MG_ML_COMMERCIAL_CROSSCHECK"
+ONDANSETRON_LABEL_SOURCE_ID = "ENAVO_GOTAS_LABEL_2025"
+ONDANSETRON_AGE_SOURCE_IDS = (
+    "SBP_DIARREIA_AGUDA_INFECCIOSA_2023",
+    "MS_MANEJO_DIARREIA_AGUDA_2023",
+    ONDANSETRON_SOURCE_ID,
+)
+
+
+def _ondansetron_off_label_reasons(age_months: int) -> tuple[str, ...]:
+    reasons = ["gastroenterite não consta nas indicações da bula do Enavo gotas"]
+    if age_months < ONDANSETRON_ENAVO_LABEL_MIN_AGE_MONTHS:
+        reasons.append("idade abaixo dos 24 meses licenciados para o Enavo gotas")
+    return tuple(reasons)
 
 _YEAR_AGE = re.compile(
     r"(?P<years>\d+)\s*anos?(?:\s+e\s+(?P<months>\d+)\s*m[eê]s(?:es)?)?"
@@ -251,6 +271,8 @@ def _load_ondansetron_presentation() -> dict[str, object]:
         or PRESENTATION_SOURCE_ID not in presentation.get("source_ids", [])
         or PRESENTATION_SOURCE_ID not in source_ids
         or ONDANSETRON_SOURCE_ID not in source_ids
+        or ONDANSETRON_LABEL_SOURCE_ID not in source_ids
+        or not set(ONDANSETRON_AGE_SOURCE_IDS).issubset(source_ids)
     ):
         raise ValueError("Apresentação ou fonte da ondansetrona não verificada.")
     strength = presentation.get("strength")
@@ -335,6 +357,18 @@ def pediatric_governance_metadata() -> dict[str, object]:
         "presentations": verified_presentations,
         "complete_regimen_count": 0,
         "triple_audit_passed": False,
+        "ondansetron_age_policy": {
+            "indication": "gastroenterite com vômitos persistentes durante reidratação oral no serviço de saúde",
+            "route": "VO",
+            "minimum_evidence_age_months": ONDANSETRON_MIN_AGE_MONTHS,
+            "maximum_selected_reference_age_months": ONDANSETRON_MAX_AGE_MONTHS,
+            "enavo_drops_minimum_label_age_months": ONDANSETRON_ENAVO_LABEL_MIN_AGE_MONTHS,
+            "gastroenteritis_off_label_at_all_ages": True,
+            "age_source_ids": list(ONDANSETRON_AGE_SOURCE_IDS),
+            "label_source_id": ONDANSETRON_LABEL_SOURCE_ID,
+            "reviewed_at": "2026-10-03",
+            "human_clinical_signoff": False,
+        },
     }
 
 
@@ -351,8 +385,15 @@ def ondansetron_volume_ml(dose_mg: float) -> float:
 
 
 def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> OndansetronDose:
-    """Calculate the CPS single-dose bands using only the cross-checked Enavo drops."""
+    """Calculate oral gastroenteritis bands; expose Enavo's off-label status.
+
+    A calculation is not a prescription. SBP/MS support consideration from six
+    months for persistent vomiting during supervised oral rehydration. Enavo's
+    licensed pediatric indications start at 24 months and exclude gastroenteritis.
+    """
     _validate_weight(weight_kg)
+    if isinstance(age_months, bool) or not isinstance(age_months, int):
+        raise ValueError("Idade deve ser informada em meses inteiros.")
     if age_months < ONDANSETRON_MIN_AGE_MONTHS:
         raise ValueError("Idade abaixo da população coberta pela referência selecionada.")
     if age_months > ONDANSETRON_MAX_AGE_MONTHS:
@@ -384,6 +425,10 @@ def calculate_ondansetron_dose(weight_kg: float, age_months: int) -> Ondansetron
         concentration_mg_per_ml=concentration,
         reconstructed_mg=reconstructed_mg,
         source_ids=(ONDANSETRON_SOURCE_ID, PRESENTATION_SOURCE_ID),
+        off_label=True,
+        off_label_reasons=_ondansetron_off_label_reasons(age_months),
+        age_source_ids=ONDANSETRON_AGE_SOURCE_IDS,
+        label_source_id=ONDANSETRON_LABEL_SOURCE_ID,
     )
 
 
@@ -543,8 +588,8 @@ def generate_pediatric_prescription(
     if "ondansetron" in candidate_medications:
         if not ONDANSETRON_MIN_AGE_MONTHS <= structured_age.months_total <= ONDANSETRON_MAX_AGE_MONTHS:
             return PrescriptionDecision(
-                ResolutionState.CONTRAINDICATED_AGE,
-                "idade fora da população pediátrica coberta pela referência de ondansetrona selecionada",
+                ResolutionState.OUTSIDE_EVIDENCE_AGE,
+                "idade fora da população coberta pela referência selecionada para gastroenterite oral; não equivale a contraindicação absoluta da ondansetrona",
                 diagnosis_id=diagnosis_id,
                 age=structured_age,
             )
@@ -576,13 +621,25 @@ def generate_pediatric_prescription(
             structured_age,
         )
 
+    off_label_note = (
+        "; uso off-label: " + "; ".join(
+            _ondansetron_off_label_reasons(structured_age.months_total)
+        )
+        if "ondansetron" in candidate_medications
+        else ""
+    )
+    indication_requirements = (
+        ("vômitos persistentes durante reidratação oral no serviço de saúde e avaliação médica do uso off-label",)
+        if "ondansetron" in candidate_medications
+        else ()
+    )
     return PrescriptionDecision(
         ResolutionState.REQUIRES_CRITICAL_INPUT,
-        "não há regime completo com vínculo diagnóstico explícito e auditoria tripla aprovada; nenhum medicamento foi gerado",
+        "não há regime completo com vínculo diagnóstico explícito e auditoria tripla aprovada; nenhum medicamento foi gerado" + off_label_note,
         (
             "regime operacional com fonte para indicação, população, dose, intervalo, duração e monitoramento",
             "apresentação brasileira e auditoria estrutural, farmacêutica/matemática e clínica/regulatória",
-        ),
+        ) + indication_requirements,
         diagnosis_id=diagnosis_id,
         age=structured_age,
     )

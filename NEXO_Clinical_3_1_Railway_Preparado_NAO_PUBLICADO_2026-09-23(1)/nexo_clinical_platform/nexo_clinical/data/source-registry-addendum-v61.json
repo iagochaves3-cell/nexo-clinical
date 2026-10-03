@@ -44,6 +44,37 @@
       "note": "Presentation does not authorize every indication."
     },
     {
+      "source_id": "SBP_DIARREIA_AGUDA_INFECCIOSA_2023",
+      "organization": "Sociedade Brasileira de Pediatria",
+      "title": "Diarreia Aguda Infecciosa — Plano B e Quadro 5",
+      "source_type": "professional_society_guidance",
+      "url": "https://www.sbp.com.br/fileadmin/user_upload/sbp/2023/junho/14/24048aPRESS-GPA-Diarreia_Aguda_Infecciosa-pSITE.pdf",
+      "verified_at": "2026-10-03",
+      "scope": "Oral ondansetron from six months for persistent vomiting during supervised Plan B rehydration; cautious assessment in infants. Age eligibility only; do not merge its age-based doses with CPS weight bands."
+    },
+    {
+      "source_id": "MS_MANEJO_DIARREIA_AGUDA_2023",
+      "organization": "Ministério da Saúde",
+      "title": "Manejo do paciente com diarreia — Plano B, item B.1.4",
+      "source_type": "official_national_guidance",
+      "url": "https://www.gov.br/saude/pt-br/centrais-de-conteudo/publicacoes/svsa/doencas-diarreicas-agudas/manejo-do-paciente-com-diarreia-avaliacao-do-estado-do-paciente/@@download/file",
+      "verified_at": "2026-10-03",
+      "scope": "Single dose for persistent vomiting in dehydrated patients during supervised Plan B; includes six months to two years. The SBP table cites this guidance, so these are not independent trials."
+    },
+    {
+      "source_id": "ENAVO_GOTAS_LABEL_2025",
+      "organization": "EMS S/A",
+      "title": "Enavo gotas 8 mg/mL — bulas do paciente e profissional EMS v0, aprovação de 20/01/2025",
+      "source_type": "manufacturer_label",
+      "url": "https://www.sara.com.br/bula-do-paciente-enavo-gotas-8mg-ml-com-1-frasco-de-5ml-de-solucao-em-gotas-ems/7896004793924/pdf",
+      "manufacturer_product_url": "https://www.sara.com.br/produto/enavo-gotas-8mg-ml-com-1-frasco-de-5ml-de-solucao-em-gotas-ems-7896004793924",
+      "professional_label_url": "https://cdn.sara.com.br/leafletDocuments/c5aebf85-c973-483e-85cf-b87b3cfa5da3.pdf",
+      "mirror_crosscheck_url": "https://bula-anvisa.s3.sa-east-1.amazonaws.com/102351449_paciente.pdf",
+      "regulator_portal": "https://consultas.anvisa.gov.br/#/bulario/?nomeProduto=ENAVO",
+      "verified_at": "2026-10-03",
+      "scope": "Selected oral product labels pediatric use from two years for oncology-related nausea/vomiting; gastroenteritis is not a listed indication. Age restriction is not a contraindication of every ondansetron formulation."
+    },
+    {
       "source_id": "CPS_ORAL_ONDANSETRON_GASTROENTERITIS",
       "organization": "Canadian Paediatric Society",
       "title": "Oral ondansetron for gastroenteritis-related vomiting",

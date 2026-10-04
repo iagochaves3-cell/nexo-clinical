@@ -40,7 +40,7 @@
   "nexo_clinical/multimodal/imaging.py": "e19fadc0111382c01f22f12587a82375c22d3b2174c1301d06aa0b77a490ea90",
   "nexo_clinical/multimodal/laboratory.py": "adc831c50e905b1ceb827ea5b8e31ec2c7fb3b12dbe13be840bfdf4a10e68aa3",
   "nexo_clinical/orchestrator.py": "84ff68f4e7bd0f29b58170b6fedd6afa1c2507cb5677f7cf2a8b1f6e52eecf31",
-  "nexo_clinical/pediatric_pharmacotherapy.py": "76fde91da9d946f9d85713c18feeefb80bb812e4c894177c70012cab48fa4c09",
+  "nexo_clinical/pediatric_pharmacotherapy.py": "759bf56548ff2ba2fb0f4ea67ca1ac552288e1aa208776e26427f836279d1f40",
   "nexo_clinical/prompts.py": "10bcfd9bd264ed23a258deb715fe4637eb11bf26aa53275fb0ad0dcdd4529667",
   "nexo_clinical/registry.py": "9e5b85194fd1201afe4defefa1b2251703c33e14f60c05f4b741c0fe513759bb",
   "nexo_clinical/rules.py": "12d8eb40c4cbb7b92d0d0e45f86cea001bca993864496ad7ad8570cdfde45535",
@@ -55,7 +55,7 @@
   "tests/test_deployment_metadata.py": "1f6d2b2c4a56180ba3d1392faeea089e6fcd618b150f609172f751cf562c6478",
   "tests/test_knowledge.py": "0d6d22fbaaca154db7ca157821fe265a5684caa0dd1412b1841e3bc8b06b43f1",
   "tests/test_multimodal.py": "6ece3e99b25148335ce1625629100191db51cde6dc5d5806f8fb84b102095c6d",
-  "tests/test_pediatric_pharmacotherapy.py": "083c7649e4a3e64897412a8c639e7283cb780ad4599bb0dbbc89434aecef01f0",
+  "tests/test_pediatric_pharmacotherapy.py": "1852e449608b3a415f2340292c8bf01b39ded023d0119b11d3c06bb43f968529",
   "tests/test_registry.py": "abaf7e0dd271978e51b87936725ac577ebb171f530b23bde73e315add50d4edd",
   "tests/test_safety.py": "787da558bf4d03fb74a3de86149fdadb12eb9dd6db25f913733aba8c5c5cf7cf"
 }
